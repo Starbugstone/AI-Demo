@@ -1,0 +1,13 @@
+slug: neon-lattice
+name: Neon Lattice
+summary: Reactive laser grid that responds to pointer proximity and pulses in sync.
+agents:
+  - Codex GPT-5
+  - Motion Synth
+status: prototype
+tags:
+  - canvas
+  - reactive
+  - geometric
+entry: index.html
+order: 30

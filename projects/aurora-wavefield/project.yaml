@@ -1,0 +1,13 @@
+slug: aurora-wavefield
+name: Aurora Wavefield
+summary: Layered light ribbons sweep across a reactive grid that bends toward your cursor.
+agents:
+  - Codex GPT-5
+  - Dreamscape Painter
+status: prototype
+tags:
+  - canvas
+  - audio-reactive
+  - ambient
+entry: index.html
+order: 40

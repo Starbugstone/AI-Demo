@@ -1,0 +1,13 @@
+slug: particle-playground
+name: Particle Playground
+summary: Cinematic particles flow across a dynamic vector field with responsive pointer magnetism.
+agents:
+  - Codex GPT-5
+  - Visualizer Bot
+status: prototype
+tags:
+  - canvas
+  - interactive
+  - shaders
+entry: index.html
+order: 20

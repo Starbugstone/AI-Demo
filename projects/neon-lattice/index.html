@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Neon Lattice</title>
+    <style>
+      :host {
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: #e2e8f0;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background: transparent;
+      }
+
+      .stage {
+        display: grid;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-radius: 1.5rem;
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        background: radial-gradient(circle at 10% 10%, rgba(56, 189, 248, 0.18), transparent 60%),
+          radial-gradient(circle at 85% 5%, rgba(147, 197, 253, 0.16), transparent 65%),
+          rgba(15, 23, 42, 0.85);
+        box-shadow: 0 1.5rem 3rem rgba(2, 6, 23, 0.6);
+        max-width: 720px;
+      }
+
+      header h2 {
+        margin: 0 0 0.35rem;
+        font-size: 1.45rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      header p {
+        margin: 0;
+        color: rgba(203, 213, 225, 0.85);
+        line-height: 1.6;
+      }
+
+      canvas {
+        width: min(720px, 100%);
+        height: calc(min(720px, 100%) * 0.56);
+        border-radius: 1.4rem;
+        display: block;
+      }
+
+      footer {
+        font-size: 0.85rem;
+        color: rgba(148, 163, 184, 0.85);
+      }
+    </style>
+  </head>
+  <body>
+    <section class="stage" role="application" aria-label="Neon Lattice">
+      <header>
+        <h2>Neon Lattice</h2>
+        <p>
+          Glide across the grid to modulate beam intensity and ripple amplitude. Double-tap to toggle auto
+          pulses.
+        </p>
+      </header>
+      <canvas id="lattice"></canvas>
+      <footer>
+        Pointer drag energises the grid • Auto mode breathes in sync with the beat • Hit `R` to reset
+      </footer>
+    </section>
+
+    <script>
+      const root = document.currentScript.getRootNode();
+      const canvas = root.getElementById('lattice');
+      const ctx = canvas.getContext('2d');
+      const DPR = window.devicePixelRatio || 1;
+
+      const state = {
+        width: 720,
+        height: 400,
+        cols: 20,
+        rows: 12,
+        phase: 0,
+        auto: true,
+      };
+
+      const pointer = {
+        active: false,
+        x: state.width / 2,
+        y: state.height / 2,
+        intensity: 0,
+      };
+
+      const resize = () => {
+        const rect = canvas.getBoundingClientRect();
+        state.width = rect.width;
+        state.height = rect.height;
+        canvas.width = rect.width * DPR;
+        canvas.height = rect.height * DPR;
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      };
+
+      const drawGrid = (time) => {
+        ctx.clearRect(0, 0, state.width, state.height);
+        const spacingX = state.width / state.cols;
+        const spacingY = state.height / state.rows;
+
+        const pulse = state.auto ? 0.5 + Math.sin(time * 0.0025) * 0.35 : pointer.intensity;
+        const glow = 0.35 + pulse * 0.4;
+
+        ctx.lineWidth = 1.5;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = `rgba(96, 165, 250, ${0.6 + glow * 0.4})`;
+        ctx.globalCompositeOperation = 'lighter';
+
+        for (let x = 0; x <= state.cols; x++) {
+          const posX = x * spacingX;
+          ctx.beginPath();
+          ctx.moveTo(posX, 0);
+          ctx.lineTo(posX, state.height);
+          ctx.strokeStyle = `rgba(56, 189, 248, ${0.3 + glow})`;
+          ctx.stroke();
+        }
+
+        for (let y = 0; y <= state.rows; y++) {
+          const posY = y * spacingY;
+          ctx.beginPath();
+          ctx.moveTo(0, posY);
+          ctx.lineTo(state.width, posY);
+          ctx.strokeStyle = `rgba(125, 211, 252, ${0.25 + glow * 0.8})`;
+          ctx.stroke();
+        }
+
+        const radius = 220;
+        const gradient = ctx.createRadialGradient(
+          pointer.x,
+          pointer.y,
+          0,
+          pointer.x,
+          pointer.y,
+          radius
+        );
+        gradient.addColorStop(0, `rgba(59, 130, 246, ${0.45 + glow * 0.5})`);
+        gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+        ctx.globalCompositeOperation = 'screen';
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(pointer.x, pointer.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      };
+
+      let lastTimestamp = performance.now();
+
+      const tick = (timestamp) => {
+        const delta = timestamp - lastTimestamp;
+        lastTimestamp = timestamp;
+
+        if (state.auto) {
+          state.phase += delta * 0.0022;
+          pointer.intensity = 0.45 + Math.sin(state.phase) * 0.4;
+        }
+
+        drawGrid(timestamp);
+        requestAnimationFrame(tick);
+      };
+
+      const updatePointer = (event) => {
+        const rect = canvas.getBoundingClientRect();
+        pointer.x = ((event.clientX - rect.left) / rect.width) * state.width;
+        pointer.y = ((event.clientY - rect.top) / rect.height) * state.height;
+      };
+
+      canvas.addEventListener('pointerdown', (event) => {
+        pointer.active = true;
+        state.auto = false;
+        pointer.intensity = 0.9;
+        updatePointer(event);
+        canvas.setPointerCapture(event.pointerId);
+      });
+
+      canvas.addEventListener('pointermove', (event) => {
+        if (!pointer.active) return;
+        updatePointer(event);
+      });
+
+      const releasePointer = () => {
+        pointer.active = false;
+        pointer.intensity = 0.2;
+      };
+
+      canvas.addEventListener('pointerup', releasePointer);
+      canvas.addEventListener('pointercancel', releasePointer);
+
+      canvas.addEventListener('dblclick', () => {
+        state.auto = !state.auto;
+        pointer.intensity = state.auto ? 0.45 : 0.35;
+      });
+
+      root.defaultView?.addEventListener('keydown', (event) => {
+        if (event.key.toLowerCase() === 'r') {
+          state.auto = true;
+          pointer.intensity = 0.35;
+        }
+      });
+
+      resize();
+      const observer = new ResizeObserver(() => resize());
+      observer.observe(canvas);
+      requestAnimationFrame(tick);
+    </script>
+  </body>
+</html>
