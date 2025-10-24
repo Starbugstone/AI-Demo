@@ -34,8 +34,28 @@ const createEventPayload = (slug, entryPoint, ticketValue, extra = {}) => ({
 const clearShadow = () => {
   const current = host.value
   if (!current?.shadowRoot) return
-  while (current.shadowRoot.firstChild) {
-    current.shadowRoot.removeChild(current.shadowRoot.firstChild)
+  
+  // Run cleanup functions before removing DOM nodes
+  const shadow = current.shadowRoot
+  if (Array.isArray(shadow.__sandboxCleanup)) {
+    shadow.__sandboxCleanup.forEach((fn) => {
+      try {
+        fn?.()
+      } catch (error) {
+        console.error('[sandbox] cleanup failed:', error)
+      }
+    })
+    shadow.__sandboxCleanup.length = 0
+  }
+  
+  // Mark as disposed to prevent new timers/RAF
+  if (shadow.__sandboxCleanup) {
+    shadow.__sandboxDisposed = true
+  }
+  
+  // Clear DOM
+  while (shadow.firstChild) {
+    shadow.removeChild(shadow.firstChild)
   }
 }
 
@@ -154,6 +174,7 @@ const injectHtml = async (html, baseUrl, currentTicket) => {
 
   dbg('inject:start', { ticket: currentTicket, base: String(baseUrl) })
 
+  // Run cleanup for previous project
   if (Array.isArray(target.__sandboxCleanup)) {
     target.__sandboxCleanup.forEach((fn) => {
       try {
@@ -167,9 +188,13 @@ const injectHtml = async (html, baseUrl, currentTicket) => {
     target.__sandboxCleanup = []
   }
 
+  // Clear DOM
   while (target.firstChild) {
     target.firstChild.remove()
   }
+
+  // Reset disposed flag for new project
+  target.__sandboxDisposed = false
 
   const scriptsBucket = []
   const nodes = Array.from(documentFragment.body.childNodes)
@@ -218,21 +243,48 @@ const injectHtml = async (html, baseUrl, currentTicket) => {
       }
       if (prop === 'requestAnimationFrame') {
         return (callback) => {
-          const handle = targetWindow.requestAnimationFrame(callback)
+          // Don't schedule if disposed
+          if (target.__sandboxDisposed) {
+            return -1
+          }
+          const handle = targetWindow.requestAnimationFrame((...args) => {
+            // Check again before executing callback
+            if (!target.__sandboxDisposed) {
+              callback(...args)
+            }
+          })
           cleanupList.push(() => targetWindow.cancelAnimationFrame(handle))
           return handle
         }
       }
       if (prop === 'setTimeout') {
         return (callback, delay, ...args) => {
-          const handle = targetWindow.setTimeout(callback, delay, ...args)
+          // Don't schedule if disposed
+          if (target.__sandboxDisposed) {
+            return -1
+          }
+          const handle = targetWindow.setTimeout((...cbArgs) => {
+            // Check before executing callback
+            if (!target.__sandboxDisposed) {
+              callback(...cbArgs)
+            }
+          }, delay, ...args)
           cleanupList.push(() => targetWindow.clearTimeout(handle))
           return handle
         }
       }
       if (prop === 'setInterval') {
         return (callback, delay, ...args) => {
-          const handle = targetWindow.setInterval(callback, delay, ...args)
+          // Don't schedule if disposed
+          if (target.__sandboxDisposed) {
+            return -1
+          }
+          const handle = targetWindow.setInterval((...cbArgs) => {
+            // Check before executing callback
+            if (!target.__sandboxDisposed) {
+              callback(...cbArgs)
+            }
+          }, delay, ...args)
           cleanupList.push(() => targetWindow.clearInterval(handle))
           return handle
         }
@@ -269,24 +321,46 @@ const injectHtml = async (html, baseUrl, currentTicket) => {
     },
   })
 
-  const instrumentationPrelude = ''
-
   scriptsBucket.forEach((entry, i) => {
     if (ticket !== currentTicket) return
 
     const preparedCode =
-      instrumentationPrelude +
       (entry.code ?? '').replace(/document\.currentScript\.getRootNode\(\)/g, 'sandboxRoot')
 
     let runner = entry.runner
     if (!runner) {
-      runner = new Function('sandboxRoot', 'window', 'document', '"use strict";\n' + preparedCode)
+      // Pass instrumented globals as function parameters to intercept bare calls
+      runner = new Function(
+        'sandboxRoot',
+        'window',
+        'document',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'setTimeout',
+        'clearTimeout',
+        'setInterval',
+        'clearInterval',
+        'ResizeObserver',
+        '"use strict";\n' + preparedCode
+      )
       entry.runner = runner
     }
 
     try {
       dbg('script:run', { ticket: currentTicket, index: i, bytes: preparedCode.length })
-      dbg("script:run", { ticket: currentTicket, index: i, bytes: preparedCode.length }); runner.call(target, target, instrumentedWindow, instrumentedDocument)
+      runner.call(
+        target,
+        target,
+        instrumentedWindow,
+        instrumentedDocument,
+        instrumentedWindow.requestAnimationFrame,
+        instrumentedWindow.cancelAnimationFrame,
+        instrumentedWindow.setTimeout,
+        instrumentedWindow.clearTimeout,
+        instrumentedWindow.setInterval,
+        instrumentedWindow.clearInterval,
+        instrumentedWindow.ResizeObserver
+      )
     } catch (error) {
       console.error('[sandbox] script execution failed:', error)
     }

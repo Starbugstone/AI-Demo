@@ -24,7 +24,7 @@ This document captures how the Vue shell, isolated project sandboxes, and Azure 
 ## 2. Repository Structure (Expanded)
 - `projects/` - source-of-truth for embedded experiments.
   - Each directory contains a self-sufficient `index.html` (with inline or referenced JS/CSS) and a `project.yaml` metadata file.
-  - Sample entries today: `particle-playground`, `aurora-wavefield`.
+  - Sample entries today: `particle-playground`, `aurora-wavefield`, `neon-lattice`.
 - `src/components/`
   - `ProjectList.vue` - renders the navigation panel, search input, result counts, and status/tag chips.
   - `Breadcrumbs.vue` - simple breadcrumb trail aware of the active project.
@@ -41,9 +41,31 @@ This document captures how the Vue shell, isolated project sandboxes, and Azure 
 5. Injects the transformed nodes into a dedicated Shadow DOM root, wiping previous content to prevent leaks when switching projects.
 6. Emits either `loaded` or `error` back to the parent for UI feedback.
 
+### Script Execution & Resource Management
+Scripts execute inside an instrumented scope that intercepts and tracks:
+- **Timer APIs**: `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`
+- **Animation Frames**: `requestAnimationFrame`, `cancelAnimationFrame`
+- **Event Listeners**: `addEventListener`, `removeEventListener` (on both `window` and `document`)
+- **Observers**: `ResizeObserver` instances
+
+All instrumented APIs are injected as function parameters, meaning **bare calls** (e.g., `requestAnimationFrame(fn)`) work correctly without requiring `window.` prefix. Each tracked resource is automatically cleaned up when:
+- The user navigates to a different project
+- The sandbox component is unmounted
+- A new project is loaded into the same sandbox
+
+### Cleanup & Disposal Mechanism
+The sandbox maintains a `__sandboxCleanup` array attached to the Shadow DOM root. When disposal occurs:
+1. All cleanup functions are executed (canceling timers, removing listeners, disconnecting observers)
+2. A `__sandboxDisposed` flag is set to prevent new resources from being scheduled
+3. The DOM tree is cleared
+4. Subsequent attempts to schedule timers/RAF return early without execution
+
+This prevents resource leaks and ensures animation loops from previous projects don't continue running in the background.
+
 Considerations:
 - Only HTML/JS/CSS assets are handled today. Additional mimetypes can be whitelisted in `mimeLookup` inside the plugin if projects require them.
 - Inline scripts should rely on `document.currentScript.getRootNode()` (already patched by the loader) instead of `document.querySelector` to remain encapsulated.
+- Projects can use bare API calls (e.g., `requestAnimationFrame`, `setTimeout`) without `window.` prefix - they're automatically intercepted.
 
 ## 4. Vite Project Asset Plugin
 Located in `vite.config.js`, the `project-asset-pipeline` plugin now:
@@ -81,6 +103,8 @@ To add a new project:
    order: 60
    ```
 4. Restart the dev server (or save the config) to see it appear automatically in the UI and manifest.
+
+**For comprehensive integration instructions**, including Shadow DOM considerations, resource management, and best practices, see [`project-integration-guide.md`](project-integration-guide.md).
 
 ## 6. Local Development Workflow
 ```bash

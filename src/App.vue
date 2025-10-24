@@ -138,7 +138,7 @@ const sandboxState = reactive({
 
 const activeSandbox = reactive({
   slug: '',
-  ticket: 0,
+  ticket: null,
 })
 
 const totalProjects = computed(() => projects.value.length)
@@ -191,7 +191,8 @@ const handleProjectSelection = (project) => {
 
   isFullscreen.value = false
   activeSandbox.slug = project.slug
-  activeSandbox.ticket = 0
+  // Don't preset ticket - let the sandbox component set it via the loading event
+  activeSandbox.ticket = null
   selectedSlug.value = project.slug
   sandboxState.status = 'loading'
   sandboxState.errorMessage = ''
@@ -223,7 +224,8 @@ const handleSandboxLoaded = (payload) => {
     return
   }
 
-  if (activeSandbox.ticket && payload.ticket && payload.ticket !== activeSandbox.ticket) {
+  // Only check ticket match if we have a ticket set from the loading event
+  if (activeSandbox.ticket !== null && payload.ticket && payload.ticket !== activeSandbox.ticket) {
     return
   }
 
@@ -236,7 +238,8 @@ const handleSandboxError = (payload) => {
     return
   }
 
-  if (activeSandbox.ticket && payload.ticket && payload.ticket !== activeSandbox.ticket) {
+  // Only check ticket match if we have a ticket set from the loading event
+  if (activeSandbox.ticket !== null && payload.ticket && payload.ticket !== activeSandbox.ticket) {
     return
   }
 
@@ -258,7 +261,7 @@ watch(filteredProjects, (next) => {
     }
     isFullscreen.value = false
     activeSandbox.slug = ''
-    activeSandbox.ticket = 0
+    activeSandbox.ticket = null
     if (sandboxState.status !== 'idle') {
       sandboxState.status = 'idle'
       sandboxState.errorMessage = ''

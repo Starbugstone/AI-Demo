@@ -18,6 +18,7 @@ A gallery of AI-assisted experiments and UI junk, bundled as a Vue 3 single-page
 2. Launch the dev server: `npm run dev`
 3. Open the printed local URL and pick a project from the sidebar (use the search field to filter as needed)
 4. Build for production when you are ready: `npm run build`
+5. Preview the production build locally: `npm run preview`
 
 ## Project Layout
 ```text
@@ -26,7 +27,8 @@ A gallery of AI-assisted experiments and UI junk, bundled as a Vue 3 single-page
 |   |-- particle-playground/    # Canvas-driven particle flow demo
 |   |   |-- index.html
 |   |   `-- project.yaml        # Metadata consumed by the Vue shell
-|   |-- aurora-wavefield/       # Layered ribbon aurora experience\n|   |-- neon-lattice/          # Pulse-responsive laser lattice (HTML + JS)
+|   |-- aurora-wavefield/       # Layered ribbon aurora experience
+|   |-- neon-lattice/           # Pulse-responsive laser lattice (HTML + JS)
 |   |   |-- index.html
 |   |   `-- project.yaml
 |   `-- ...                     # Additional projects follow the same pattern
@@ -37,14 +39,18 @@ A gallery of AI-assisted experiments and UI junk, bundled as a Vue 3 single-page
 |   `-- style.css               # Global theming
 |-- vite.config.js              # Vue plugin + custom project asset pipeline
 |-- tech-readme.md              # Deep dive into architecture and deployment
+|-- project-integration-guide.md # Detailed guide for creating sandbox projects
 `-- todo.md                     # Living checklist for the build
 ```
 
 ## Sandbox Projects
 - Each project owns its metadata via `projects/<slug>/project.yaml`; the Vite plugin aggregates every config into `/projects/manifest.json` at runtime.
 - Provide at least an `index.html` entry point, any additional assets, and metadata fields such as `name`, `summary`, `agents`, `status`, and `tags`.
-- Scripts run inside the Shadow DOM; use `document.currentScript.getRootNode()` (automatically patched) to interact with local nodes.
+- Scripts run inside an instrumented Shadow DOM environment with automatic resource cleanup on navigation.
+- Use `document.currentScript.getRootNode()` to query your project's DOM, not the global `document`.
 - Static files are copied into the production build via the custom Vite plugin, so everything under `projects/` ships with the site automatically.
+
+**→ For detailed integration instructions, see [`project-integration-guide.md`](project-integration-guide.md)**
 
 ## Deploying to Azure Static Web Apps
 - **App location:** `.`
@@ -53,4 +59,3 @@ A gallery of AI-assisted experiments and UI junk, bundled as a Vue 3 single-page
 - API location can be left blank (no server code).
 
 See `tech-readme.md` for CI/CD notes, the sandbox architecture, and Azure environment configuration tips.
-
