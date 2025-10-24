@@ -22,6 +22,8 @@ let activeController = null
 
 const JS_MIME_TYPES = new Set(['', 'text/javascript', 'application/javascript'])
 
+
+const dbg = (...args) => { try { console.log('[sandbox]', ...args) } catch {} }
 const createEventPayload = (slug, entryPoint, ticketValue, extra = {}) => ({
   slug,
   entryPoint,
@@ -150,12 +152,27 @@ const injectHtml = async (html, baseUrl, currentTicket) => {
   const documentFragment = parser.parseFromString(html, 'text/html')
   const target = container.shadowRoot ?? container.attachShadow({ mode: 'open' })
 
+  dbg('inject:start', { ticket: currentTicket, base: String(baseUrl) })
+
+  if (Array.isArray(target.__sandboxCleanup)) {
+    target.__sandboxCleanup.forEach((fn) => {
+      try {
+        fn?.()
+      } catch (error) {
+        console.error('[sandbox] cleanup failed:', error)
+      }
+    })
+    target.__sandboxCleanup.length = 0
+  } else {
+    target.__sandboxCleanup = []
+  }
+
   while (target.firstChild) {
     target.firstChild.remove()
   }
 
-  const nodes = Array.from(documentFragment.body.childNodes)
   const scriptsBucket = []
+  const nodes = Array.from(documentFragment.body.childNodes)
 
   for (const child of nodes) {
     if (ticket !== currentTicket) return
@@ -167,28 +184,115 @@ const injectHtml = async (html, baseUrl, currentTicket) => {
 
   if (ticket !== currentTicket) return
 
-  const boundDocument = target.ownerDocument ?? document
-  const boundWindow = boundDocument.defaultView ?? window
+  const baseDocument = target.ownerDocument ?? document
+  const baseWindow = baseDocument.defaultView ?? window
+  const cleanupList = target.__sandboxCleanup
 
-  scriptsBucket.forEach((entry) => {
+  const instrumentedDocument = new Proxy(baseDocument, {
+    get(targetDocument, prop) {
+      if (prop === 'addEventListener') {
+        return (type, listener, options) => {
+          targetDocument.addEventListener(type, listener, options)
+          cleanupList.push(() =>
+            targetDocument.removeEventListener(type, listener, options)
+          )
+        }
+      }
+      if (prop === 'removeEventListener') {
+        return (type, listener, options) =>
+          targetDocument.removeEventListener(type, listener, options)
+      }
+      const value = targetDocument[prop]
+      return typeof value === 'function' ? value.bind(targetDocument) : value
+    },
+    set(targetDocument, prop, value) {
+      targetDocument[prop] = value
+      return true
+    },
+  })
+
+  const instrumentedWindow = new Proxy(baseWindow, {
+    get(targetWindow, prop) {
+      if (prop === 'document') {
+        return instrumentedDocument
+      }
+      if (prop === 'requestAnimationFrame') {
+        return (callback) => {
+          const handle = targetWindow.requestAnimationFrame(callback)
+          cleanupList.push(() => targetWindow.cancelAnimationFrame(handle))
+          return handle
+        }
+      }
+      if (prop === 'setTimeout') {
+        return (callback, delay, ...args) => {
+          const handle = targetWindow.setTimeout(callback, delay, ...args)
+          cleanupList.push(() => targetWindow.clearTimeout(handle))
+          return handle
+        }
+      }
+      if (prop === 'setInterval') {
+        return (callback, delay, ...args) => {
+          const handle = targetWindow.setInterval(callback, delay, ...args)
+          cleanupList.push(() => targetWindow.clearInterval(handle))
+          return handle
+        }
+      }
+      if (prop === 'addEventListener') {
+        return (type, listener, options) => {
+          targetWindow.addEventListener(type, listener, options)
+          cleanupList.push(() => targetWindow.removeEventListener(type, listener, options))
+        }
+      }
+      if (prop === 'removeEventListener') {
+        return (type, listener, options) => targetWindow.removeEventListener(type, listener, options)
+      }
+      if (prop === 'ResizeObserver' && typeof targetWindow.ResizeObserver === 'function') {
+        return class WrappedResizeObserver extends targetWindow.ResizeObserver {
+          constructor(callback) {
+            super(callback)
+            cleanupList.push(() => {
+              try {
+                super.disconnect()
+              } catch (error) {
+                console.error('[sandbox] resize observer cleanup failed:', error)
+              }
+            })
+          }
+        }
+      }
+      const value = targetWindow[prop]
+      return typeof value === 'function' ? value.bind(targetWindow) : value
+    },
+    set(targetWindow, prop, value) {
+      targetWindow[prop] = value
+      return true
+    },
+  })
+
+  const instrumentationPrelude = ''
+
+  scriptsBucket.forEach((entry, i) => {
     if (ticket !== currentTicket) return
 
-    const preparedCode = (entry.code ?? '').replace(
-      /document\.currentScript\.getRootNode\(\)/g,
-      'sandboxRoot'
-    )
+    const preparedCode =
+      instrumentationPrelude +
+      (entry.code ?? '').replace(/document\.currentScript\.getRootNode\(\)/g, 'sandboxRoot')
 
     let runner = entry.runner
     if (!runner) {
       runner = new Function('sandboxRoot', 'window', 'document', '"use strict";\n' + preparedCode)
       entry.runner = runner
     }
+
     try {
-      runner.call(target, target, boundWindow, boundDocument)
+      dbg('script:run', { ticket: currentTicket, index: i, bytes: preparedCode.length })
+      dbg("script:run", { ticket: currentTicket, index: i, bytes: preparedCode.length }); runner.call(target, target, instrumentedWindow, instrumentedDocument)
     } catch (error) {
       console.error('[sandbox] script execution failed:', error)
     }
   })
+
+  dbg('inject:done', { ticket: currentTicket, scripts: scriptsBucket.length })
 }
 
 const loadProject = async (slug, entryPoint, currentTicket) => {
@@ -279,3 +383,7 @@ onBeforeUnmount(() => {
   display: block;
 }
 </style>
+
+
+
+
