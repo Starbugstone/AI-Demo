@@ -101,6 +101,16 @@
         border: 1px solid rgba(147, 197, 253, 0.22);
         box-shadow: inset 0 0 2.2rem rgba(15, 118, 110, 0.24);
       }
+      /* FX canvas overlay */
+      .fx-layer {
+        position: absolute;
+        inset: 0.6rem;
+        pointer-events: none;
+        z-index: 2;
+        border-radius: 1rem;
+        overflow: hidden;
+        filter: drop-shadow(0 0 0.25rem rgba(236, 72, 153, 0.25));
+      }
       .board {
         --cell-size: min(64px, min(12vw, 82px));
         display: grid;
@@ -170,6 +180,9 @@
       .candy.orb::after {
         background: rgba(255, 255, 255, 0.95);
         opacity: 0.95;
+      }
+      .candy.cross {
+        box-shadow: 0 0.6rem 1.4rem rgba(250, 204, 21, 0.45), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35);
       }
       .candy .glyph {
         position: relative;
@@ -359,6 +372,7 @@
         </div>
       </header>
       <div class="board-shell">
+        <canvas id="fx-canvas" class="fx-layer"></canvas>
         <div class="board" id="candy-board" role="grid" aria-label="Candy grid"></div>
       </div>
       <div class="feed">
@@ -381,6 +395,9 @@
         const root = document.currentScript.getRootNode();
         const hostDocument = root.host?.ownerDocument || root;
         const boardEl = root.getElementById('candy-board');
+        // Initialize effects canvas overlay
+        // Set up after querying board/container elements
+        
         const scoreEl = root.getElementById('score');
         const movesEl = root.getElementById('moves');
         const cascadeEl = root.getElementById('cascade');
@@ -781,12 +798,19 @@
             const cell = state.board[index];
             cell.element.classList.add('clearing');
             if (blasted.has(index)) cell.element.classList.add('blast');
+            // FX: subtle sparkle on matched tiles
+            try {
+              if (baseMatched.has(index)) {
+                const { x, y } = cellCenter(index);
+                burstParticles(x, y, { count: 6, speed: 160, life: 0.35, gravity: 200 });
+              }
+            } catch {}
           });
           
           state.score += expanded.size * 45 * cascadeLevel;
           updateHud();
           logCombo(expanded.size, cascadeLevel);
-          playSfx(baseMatched.size !== expanded.size ? 'bomb' : 'match');
+          playSfx(baseMatched.size !== expanded.size ? 'bomb' : 'match', { cascadeLevel });
           await delay(240);          const crossIndexSet = new Set(crossList.map((p) => p.index));
           const filteredBombPlacements = bombPlacements.filter((b) => !crossIndexSet.has(b.index));
           const placements = filteredBombPlacements.concat(crossList);
@@ -829,47 +853,191 @@
         };
         
         const audio = { ctx: null };
-        
+        const fx = { canvas: null, ctx: null, particles: [], beams: [], lastResize: 0 };
+        // Initialize effects once root elements exist
+        initFx();
+
         const initAudio = () => {
           if (audio.ctx) return;
-          try {
-            audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
-          } catch {}
+          try { audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
         };
-        
-        const playTone = (freq = 440, duration = 0.08, type = 'sine', gain = 0.05) => {
+
+        function initFx() {
+          if (fx.canvas) return;
+          fx.canvas = root.getElementById('fx-canvas');
+          if (!fx.canvas) return;
+          fx.ctx = fx.canvas.getContext('2d');
+          const resize = () => {
+            const shell = fx.canvas.parentElement;
+            const rect = shell.getBoundingClientRect();
+            fx.canvas.width = Math.floor(rect.width);
+            fx.canvas.height = Math.floor(rect.height);
+          };
+          resize();
+          const ro = new ResizeObserver(() => {
+            const now = performance.now();
+            if (now - fx.lastResize > 50) { resize(); fx.lastResize = now; }
+          });
+          ro.observe(fx.canvas.parentElement);
+          requestAnimationFrame(tickFx);
+        }
+
+        function tickFx() {
+          if (!fx.ctx || !fx.canvas) return;
+          const ctx = fx.ctx;
+          ctx.clearRect(0, 0, fx.canvas.width, fx.canvas.height);
+          const now = performance.now();
+          // beams
+          fx.beams = fx.beams.filter((b) => now < b.end);
+          for (const b of fx.beams) {
+            const p = Math.min(1, (now - b.start) / b.duration);
+            const w = b.baseWidth * (1 - p) + 2;
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const grad = ctx.createLinearGradient(b.x1, b.y1, b.x2, b.y2);
+            grad.addColorStop(0, b.colorStart);
+            grad.addColorStop(1, b.colorEnd);
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = w;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            const ex = b.x1 + (b.x2 - b.x1) * p;
+            const ey = b.y1 + (b.y2 - b.y1) * p;
+            ctx.moveTo(b.x1, b.y1);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+            ctx.restore();
+          }
+          // particles
+          fx.particles = fx.particles.filter((p) => p.life > 0);
+          for (const p of fx.particles) {
+            const t = Math.min(32, p.last ? now - p.last : 16) / 1000;
+            p.last = now;
+            p.vy += (p.g ?? 0) * t;
+            p.x += p.vx * t;
+            p.y += p.vy * t;
+            p.life -= t;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+          requestAnimationFrame(tickFx);
+        }
+
+        const boardRect = () => {
+          const shell = boardEl.parentElement; // .board-shell
+          return shell.getBoundingClientRect();
+        };
+
+        const cellCenter = (index) => {
+          const el = state.board[index]?.element;
+          const rect = el.getBoundingClientRect();
+          const r = boardRect();
+          return { x: rect.left - r.left + rect.width / 2, y: rect.top - r.top + rect.height / 2 };
+        };
+
+        const addBeam = (x1, y1, x2, y2, opts = {}) => {
+          if (!fx.ctx) return;
+          const now = performance.now();
+          fx.beams.push({
+            x1, y1, x2, y2,
+            colorStart: opts.colorStart ?? 'rgba(96,165,250,0.95)',
+            colorEnd: opts.colorEnd ?? 'rgba(244,114,182,0.95)',
+            baseWidth: opts.baseWidth ?? 10,
+            start: now,
+            duration: opts.duration ?? 220,
+            end: now + (opts.duration ?? 220),
+          });
+        };
+
+        const burstParticles = (x, y, opts = {}) => {
+          if (!fx.ctx) return;
+          const count = opts.count ?? 30;
+          const speed = opts.speed ?? 260;
+          const colors = opts.colors ?? ['#f472b6', '#60a5fa', '#34d399', '#fde047'];
+          for (let i = 0; i < count; i += 1) {
+            const a = Math.random() * Math.PI * 2;
+            const m = (0.4 + Math.random() * 1) * speed;
+            fx.particles.push({
+              x, y,
+              vx: Math.cos(a) * m,
+              vy: Math.sin(a) * m,
+              size: 2 + Math.random() * 3,
+              color: colors[Math.floor(Math.random() * colors.length)],
+              life: (opts.life ?? 0.6) * (0.7 + Math.random() * 0.6),
+              maxLife: opts.life ?? 0.6,
+              g: opts.gravity ?? 320,
+              last: performance.now(),
+            });
+          }
+        };
+
+        const playTone = (freq = 440, duration = 0.08, type = 'sine', gain = 0.05, pan = 0) => {
           if (!audio.ctx) return;
           const ctx = audio.ctx;
           const osc = ctx.createOscillator();
           const g = ctx.createGain();
+          const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
           osc.type = type;
           osc.frequency.value = freq;
           g.gain.value = gain;
-          osc.connect(g);
-          g.connect(ctx.destination);
+          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(ctx.destination); }
+          else { osc.connect(g); g.connect(ctx.destination); }
           const now = ctx.currentTime;
           g.gain.setValueAtTime(gain, now);
           g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
           osc.start(now);
           osc.stop(now + duration + 0.02);
         };
-        
-        const playSfx = (kind) => {
+
+        const playNoise = (duration = 0.2, gain = 0.05, type = 'lowpass') => {
+          if (!audio.ctx) return;
+          const ctx = audio.ctx;
+          const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+          const src = ctx.createBufferSource();
+          src.buffer = buffer;
+          const g = ctx.createGain();
+          g.gain.value = gain;
+          const filt = ctx.createBiquadFilter();
+          filt.type = type;
+          filt.frequency.value = 800;
+          src.connect(filt); filt.connect(g); g.connect(ctx.destination);
+          const now = ctx.currentTime;
+          g.gain.setValueAtTime(gain, now);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+          src.start(now);
+          src.stop(now + duration + 0.02);
+        };
+
+        const playSfx = (kind, opts = {}) => {
           initAudio();
+          const level = Math.max(1, opts.cascadeLevel ?? state.activeCascade ?? 1);
+          const boost = Math.min(0.06, 0.01 * (level - 1));
+          const pan = (Math.random() * 2 - 1) * 0.2;
           switch (kind) {
             case 'swap':
-              playTone(520, 0.05, 'triangle', 0.04);
+              playTone(520 + Math.random() * 15, 0.05, 'triangle', 0.04 + boost * 0.5, pan);
               break;
             case 'invalid':
-              playTone(200, 0.09, 'sawtooth', 0.05);
+              playTone(200, 0.09, 'sawtooth', 0.05 + boost, 0);
               break;
             case 'match':
-              playTone(700, 0.06, 'sine', 0.05);
-              setTimeout(() => playTone(880, 0.06, 'sine', 0.04), 60);
+              playTone(700 + Math.random() * 30, 0.07, 'sine', 0.05 + boost, pan);
+              setTimeout(() => playTone(880 + Math.random() * 30, 0.06, 'sine', 0.045 + boost, -pan), 60);
               break;
             case 'bomb':
-              playTone(220, 0.12, 'square', 0.06);
-              setTimeout(() => playTone(160, 0.12, 'sine', 0.05), 90);
+              playNoise(0.18, 0.06 + boost * 1.2, 'lowpass');
+              setTimeout(() => playTone(180, 0.14, 'sine', 0.045 + boost, pan), 70);
+              break;
+            case 'laser':
+              playTone(1400, 0.05, 'square', 0.035 + boost, pan);
+              setTimeout(() => playTone(900, 0.08, 'triangle', 0.03 + boost, -pan), 40);
               break;
           }
         };
@@ -907,6 +1075,7 @@
             const affected = new Set();
             const toProcess = [];
             const visitedBombs = new Set();
+            const centers = [];
             const enqueueIfBomb = (idx) => {
               const cell = state.board[idx];
               if (cell?.special === 'bomb' && !visitedBombs.has(idx)) {
@@ -919,6 +1088,7 @@
             while (toProcess.length) {
               const bombIndex = toProcess.shift();
               const { row, col } = indexToPoint(bombIndex);
+              centers.push(bombIndex);
               for (let dr = -1; dr <= 1; dr += 1) {
                 for (let dc = -1; dc <= 1; dc += 1) {
                   const rr = row + dr;
@@ -935,7 +1105,14 @@
               const c = state.board[i];
               c.element.classList.add('clearing', 'blast');
             });
-            playSfx('bomb');
+            // FX: big bursts at bomb centers
+            try {
+              centers.forEach((ci) => {
+                const { x, y } = cellCenter(ci);
+                burstParticles(x, y, { count: 42, speed: 320, life: 0.7 });
+              });
+            } catch {}
+            playSfx('bomb', { cascadeLevel: state.activeCascade || 1 });
             await delay(240);
             affected.forEach((i) => {
               const c = state.board[i];
@@ -961,7 +1138,26 @@
               const c = state.board[i];
               c.element.classList.add('clearing', 'blast');
             });
-            playSfx('bomb');
+            try {
+              const { x: sx, y: sy } = cellCenter(orbIndex);
+              const indices = Array.from(affected).filter((i) => i !== orbIndex);
+              indices.forEach((ti, idx) => {
+                const { x: tx, y: ty } = cellCenter(ti);
+                setTimeout(() => addBeam(sx, sy, tx, ty, {
+                  colorStart: 'rgba(244,114,182,0.95)',
+                  colorEnd: 'rgba(96,165,250,0.95)',
+                  baseWidth: 8,
+                  duration: 260,
+                }), idx * 12);
+              });
+              setTimeout(() => {
+                indices.forEach((ti) => {
+                  const { x, y } = cellCenter(ti);
+                  burstParticles(x, y, { count: 12, speed: 220, life: 0.45, gravity: 260 });
+                });
+              }, 200);
+            } catch {}
+            playSfx('laser', { cascadeLevel: state.activeCascade || 1 });
             await delay(260);
             affected.forEach((i) => {
               const c = state.board[i];
@@ -986,7 +1182,21 @@
               const c = state.board[i];
               c.element.classList.add('clearing', 'blast');
             });
-            playSfx('bomb');
+            try {
+              const leftIdx = pointToIndex(row, 0);
+              const rightIdx = pointToIndex(row, boardSize - 1);
+              const topIdx = pointToIndex(0, col);
+              const bottomIdx = pointToIndex(boardSize - 1, col);
+              const { x: lx, y: ly } = cellCenter(leftIdx);
+              const { x: rx, y: ry } = cellCenter(rightIdx);
+              const { x: tx, y: ty } = cellCenter(topIdx);
+              const { x: bx, y: by } = cellCenter(bottomIdx);
+              const { x: cx, y: cy } = cellCenter(centerIndex);
+              addBeam(lx, ly, rx, ry, { colorStart: 'rgba(250,204,21,0.95)', colorEnd: 'rgba(244,114,182,0.95)', baseWidth: 10, duration: 220 });
+              addBeam(tx, ty, bx, by, { colorStart: 'rgba(250,204,21,0.95)', colorEnd: 'rgba(96,165,250,0.95)', baseWidth: 10, duration: 220 });
+              burstParticles(cx, cy, { count: 28, speed: 280, life: 0.5 });
+            } catch {}
+            playSfx('laser', { cascadeLevel: state.activeCascade || 1 });
             await delay(240);
             affected.forEach((i) => {
               const c = state.board[i];
