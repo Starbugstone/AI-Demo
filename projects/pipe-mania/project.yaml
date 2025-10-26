@@ -1,5 +1,5 @@
-name: Pipe Mania Redux
-summary: Rotate pressurized conduits to route coolant from the core to the drain before the surge hits.
+name: "Pipe Mania: Coolant Cascade"
+summary: Chain queued conduits into a sealed coolant artery before the plasma surge overwhelms the reactor.
 agents:
   - GPT-5 Codex
   - Midjourney
@@ -8,4 +8,6 @@ tags:
   - puzzle
   - arcade
   - interactive
+  - strategy
+  - timed
 order: 35

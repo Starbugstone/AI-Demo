@@ -2,146 +2,270 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Pipe Mania Redux</title>
+    <title>Pipe Mania: Coolant Cascade</title>
     <style>
       :host {
-        font-family: "Russo One", "Bebas Neue", system-ui, sans-serif;
+        font-family: "Russo One", "Bebas Neue", "Segoe UI", sans-serif;
         color: #e2e8f0;
         background: transparent;
         display: block;
-        padding: 1.5rem clamp(1rem, 5vw, 3rem) 2rem;
+        padding: clamp(1rem, 2vw + 1rem, 2.5rem);
+        box-sizing: border-box;
       }
 
       body {
-        background: transparent;
         margin: 0;
+        background: transparent;
       }
 
       .wrapper {
-        max-width: 960px;
+        max-width: 1080px;
         margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
       }
 
-      h1 {
+      header h1 {
+        margin: 0;
         font-size: clamp(1.6rem, 2vw + 1.4rem, 3rem);
-        margin: 0 0 0.25rem;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         color: #f8fafc;
       }
 
       .subtitle {
-        margin: 0 0 1rem;
-        color: #94a3b8;
-        letter-spacing: 0.08em;
-        font-size: 0.85rem;
+        margin: 0.35rem 0 0;
+        color: rgba(148, 163, 184, 0.9);
+        letter-spacing: 0.14em;
         text-transform: uppercase;
+        font-size: 0.8rem;
       }
 
       .hud {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 0.75rem;
-        margin: 1rem 0 0.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.8rem;
       }
 
       .stat {
-        border-radius: 0.9rem;
+        border-radius: 1rem;
         padding: 0.85rem 1rem;
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.72));
-        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08), 0 6px 18px rgba(2, 12, 27, 0.6);
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.65));
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12), 0 16px 36px rgba(2, 8, 23, 0.55);
         display: flex;
         flex-direction: column;
-        gap: 0.35rem;
+        gap: 0.25rem;
       }
 
       .stat .label {
         font-size: 0.72rem;
-        letter-spacing: 0.2em;
+        letter-spacing: 0.18em;
         text-transform: uppercase;
-        color: #94a3b8;
+        color: rgba(148, 163, 184, 0.75);
       }
 
       .stat .value {
-        font-size: 1.35rem;
-        letter-spacing: 0.04em;
+        font-size: 1.4rem;
+        letter-spacing: 0.05em;
         color: #f8fafc;
       }
 
+      .timer-bar {
+        position: relative;
+        width: 100%;
+        height: 0.4rem;
+        margin-top: 0.5rem;
+        border-radius: 999px;
+        background: rgba(51, 65, 85, 0.4);
+        overflow: hidden;
+      }
+
+      .timer-bar span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #facc15, #f97316, #ef4444);
+        transform-origin: left center;
+        transition: transform 160ms ease-out;
+      }
+
       .message {
-        margin: 0.75rem 0 0;
+        margin: 0;
         padding: 0.85rem 1rem;
-        border-radius: 0.8rem;
-        background: linear-gradient(135deg, rgba(8, 47, 73, 0.6), rgba(14, 165, 233, 0.08));
+        border-radius: 0.9rem;
+        background: linear-gradient(140deg, rgba(8, 47, 73, 0.6), rgba(14, 165, 233, 0.1));
         box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.18);
-        font-size: 0.95rem;
-        min-height: 3rem;
+        min-height: 3.1rem;
         display: flex;
         align-items: center;
+        font-size: 0.95rem;
+        line-height: 1.45;
       }
 
       .message[data-tone="success"] {
-        background: linear-gradient(135deg, rgba(22, 163, 74, 0.3), rgba(13, 148, 136, 0.18));
-        box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.4);
+        background: linear-gradient(135deg, rgba(22, 163, 74, 0.35), rgba(16, 185, 129, 0.18));
+        box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.4);
         color: #bbf7d0;
       }
 
       .message[data-tone="danger"] {
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.28), rgba(190, 24, 93, 0.18));
-        box-shadow: inset 0 0 0 1px rgba(251, 113, 133, 0.4);
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.35), rgba(190, 24, 93, 0.18));
+        box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.45);
         color: #fee2e2;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+        gap: 1.25rem;
+        align-items: start;
       }
 
       .board-wrap {
         position: relative;
-        width: min(90vw, 640px);
+        width: 100%;
         aspect-ratio: 1 / 1;
-        margin: 1.6rem auto 1.2rem;
-        border-radius: 1.2rem;
-        padding: 1.2rem;
-        background: radial-gradient(circle at 20% 20%, rgba(6, 182, 212, 0.12), transparent 62%),
-          linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.7));
-        box-shadow: 0 30px 60px rgba(2, 10, 26, 0.7), inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+        border-radius: 1.25rem;
+        padding: clamp(0.75rem, 1.1vw, 1.1rem);
+        background: radial-gradient(circle at 18% 16%, rgba(56, 189, 248, 0.12), transparent 58%),
+          radial-gradient(circle at 82% 18%, rgba(14, 116, 144, 0.1), transparent 64%),
+          linear-gradient(155deg, rgba(7, 11, 26, 0.95), rgba(10, 18, 34, 0.78));
+        box-shadow: 0 35px 80px rgba(2, 8, 23, 0.72), inset 0 0 0 1px rgba(148, 163, 184, 0.15);
       }
 
       canvas {
         width: 100%;
         height: 100%;
         display: block;
-        border-radius: 0.75rem;
-        background: linear-gradient(160deg, rgba(2, 6, 23, 0.92), rgba(15, 23, 42, 0.92));
-        box-shadow: inset 0 0 60px rgba(6, 182, 212, 0.07);
+        border-radius: 0.9rem;
+        background: linear-gradient(150deg, rgba(2, 6, 23, 0.96), rgba(15, 23, 42, 0.92));
+        box-shadow: inset 0 0 60px rgba(59, 130, 246, 0.08);
       }
 
-      .controls {
+      aside.sidebar {
         display: flex;
-        flex-wrap: wrap;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .panel {
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(30, 41, 59, 0.55));
+        border-radius: 1.1rem;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
         gap: 0.75rem;
-        justify-content: center;
-        margin-top: 0.5rem;
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: rgba(148, 163, 184, 0.9);
+      }
+
+      .queue {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .queue-item {
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.5rem 0.65rem;
+        border-radius: 0.85rem;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(71, 85, 105, 0.4);
+        transition: border-color 160ms ease, transform 160ms ease;
+      }
+
+      .queue-item.active {
+        border-color: rgba(45, 212, 191, 0.7);
+        background: rgba(15, 118, 110, 0.22);
+        transform: translateY(-2px);
+      }
+
+      .queue-item canvas {
+        width: 72px;
+        height: 72px;
+        background: rgba(7, 11, 24, 0.65);
+        border-radius: 0.7rem;
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+      }
+
+      .queue-item .meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .queue-item .title {
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #e0f2fe;
+      }
+
+      .queue-item .hint {
+        font-size: 0.72rem;
+        color: rgba(148, 163, 184, 0.75);
+        line-height: 1.4;
+      }
+
+      .panel .instructions {
+        font-size: 0.75rem;
+        line-height: 1.5;
+        color: rgba(148, 163, 184, 0.8);
+      }
+
+      .panel-controls {
+        display: grid;
+        gap: 0.65rem;
       }
 
       button {
         border: none;
         border-radius: 999px;
-        padding: 0.85rem 1.8rem;
+        padding: 0.85rem 1.6rem;
         text-transform: uppercase;
         letter-spacing: 0.18em;
-        font-size: 0.72rem;
+        font-size: 0.7rem;
         font-weight: 700;
-        color: #0f172a;
         cursor: pointer;
-        transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+        color: #0f172a;
+        transition: transform 160ms ease, box-shadow 160ms ease;
       }
 
       button.primary {
         background: linear-gradient(135deg, #22d3ee, #0ea5e9);
-        box-shadow: 0 12px 32px rgba(14, 165, 233, 0.35);
+        box-shadow: 0 14px 38px rgba(14, 165, 233, 0.35);
       }
 
       button.secondary {
         background: linear-gradient(135deg, #f97316, #ef4444);
-        box-shadow: 0 12px 32px rgba(249, 115, 22, 0.35);
+        box-shadow: 0 14px 38px rgba(248, 113, 113, 0.35);
+      }
+
+      .panel-controls button {
+        width: 100%;
+        background: linear-gradient(135deg, rgba(45, 212, 191, 0.65), rgba(14, 165, 233, 0.6));
+        color: #022c22;
+        box-shadow: 0 10px 24px rgba(13, 148, 136, 0.35);
+      }
+
+      .panel-controls button:nth-child(2) {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.7), rgba(56, 189, 248, 0.6));
+        color: #041b33;
+      }
+
+      .panel-controls button:last-child {
+        background: linear-gradient(135deg, rgba(248, 113, 113, 0.75), rgba(244, 63, 94, 0.65));
+        color: #2b0a0f;
       }
 
       button:active {
@@ -153,27 +277,48 @@
         outline-offset: 3px;
       }
 
-      @media (max-width: 600px) {
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.85rem;
+        justify-content: center;
+        margin-top: 0.5rem;
+      }
+
+      @media (max-width: 960px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        aside.sidebar {
+          order: -1;
+        }
+      }
+
+      @media (max-width: 640px) {
         :host {
           padding: 1rem;
         }
 
-        .board-wrap {
-          padding: 0.9rem;
-          width: 100%;
+        .queue-item {
+          grid-template-columns: 56px 1fr;
+          padding: 0.45rem 0.55rem;
         }
 
-        button {
-          flex: 1 1 100%;
+        .queue-item canvas {
+          width: 56px;
+          height: 56px;
         }
       }
     </style>
   </head>
   <body>
     <div class="wrapper">
-      <h1>Pipe Mania Redux</h1>
-      <p class="subtitle">Stabilize the coolant lattice before the surge arrives</p>
-      <div class="hud">
+      <header>
+        <h1>Pipe Mania: Coolant Cascade</h1>
+        <p class="subtitle">Queue, rotate, and drop conduits before the plasma surge ignites the grid.</p>
+      </header>
+      <section class="hud" aria-live="polite">
         <div class="stat">
           <span class="label">Level</span>
           <span class="value" id="level">1</span>
@@ -185,37 +330,57 @@
         <div class="stat">
           <span class="label">Pressure Surge</span>
           <span class="value" id="timer">--</span>
+          <div class="timer-bar" aria-hidden="true">
+            <span id="timer-progress" style="transform: scaleX(1)"></span>
+          </div>
         </div>
         <div class="stat">
           <span class="label">Flow Integrity</span>
           <span class="value" id="integrity">0%</span>
         </div>
-      </div>
-      <p class="message" id="message">Rotate tiles to connect the left intake to the right drain. Time your build before the coolant surge hits.</p>
-      <div class="board-wrap">
-        <canvas id="board" width="720" height="720">Your browser does not support canvas.</canvas>
+      </section>
+      <p class="message" id="message">
+        Place conduits from the queue on the grid. Left click empty cells to drop the highlighted piece. Right click placed pieces to rotate.
+        Survive the coolant surge by connecting the intake to the drain.
+      </p>
+      <div class="layout">
+        <div class="board-wrap">
+          <canvas id="board" width="720" height="720">Your browser does not support canvas.</canvas>
+        </div>
+        <aside class="sidebar">
+          <div class="panel">
+            <h2>Upcoming Conduits</h2>
+            <div id="queue" class="queue" aria-live="polite"></div>
+            <p class="instructions">
+              Highlighted piece is next. Rotate it, scrap it, or drop it onto the lattice. Shift + right click removes a placed piece but shaves time off the surge.
+            </p>
+          </div>
+          <div class="panel panel-controls">
+            <button id="rotate-left" type="button">Rotate Piece ⟲</button>
+            <button id="rotate-right" type="button">Rotate Piece ⟳</button>
+            <button id="scrap-piece" type="button">Scrap Piece (-2s)</button>
+          </div>
+        </aside>
       </div>
       <div class="controls">
-        <button class="primary" id="force-flow">Release Coolant</button>
-        <button class="secondary" id="new-level">Reroute Grid</button>
+        <button class="primary" id="force-flow" type="button">Release Coolant</button>
+        <button class="secondary" id="new-level" type="button">Reset Grid</button>
       </div>
     </div>
     <script>
       (function () {
         const root = document.currentScript.getRootNode();
-
-        if (root.__pipeManiaCleanup) {
-          root.__pipeManiaCleanup.forEach((fn) => {
+        if (root.__pipeCascadeCleanup) {
+          root.__pipeCascadeCleanup.forEach((fn) => {
             try {
               fn();
-            } catch (err) {
-              console.error(err);
+            } catch (error) {
+              console.error(error);
             }
           });
         }
-
         const cleanupCallbacks = [];
-        root.__pipeManiaCleanup = cleanupCallbacks;
+        root.__pipeCascadeCleanup = cleanupCallbacks;
         const registerCleanup = (fn) => cleanupCallbacks.push(fn);
 
         const canvas = root.getElementById('board');
@@ -223,65 +388,71 @@
         const levelEl = root.getElementById('level');
         const scoreEl = root.getElementById('score');
         const timerEl = root.getElementById('timer');
-        const messageEl = root.getElementById('message');
+        const timerProgressEl = root.getElementById('timer-progress');
         const integrityEl = root.getElementById('integrity');
+        const messageEl = root.getElementById('message');
+        const queueEl = root.getElementById('queue');
+        const rotateLeftBtn = root.getElementById('rotate-left');
+        const rotateRightBtn = root.getElementById('rotate-right');
+        const scrapBtn = root.getElementById('scrap-piece');
         const forceButton = root.getElementById('force-flow');
-        const newLevelButton = root.getElementById('new-level');
+        const resetButton = root.getElementById('new-level');
         const boardWrap = root.querySelector('.board-wrap');
 
         const DIRS = [
-          { name: 'top', dx: 0, dy: -1, bit: 1, oppositeBit: 4 },
-          { name: 'right', dx: 1, dy: 0, bit: 2, oppositeBit: 8 },
-          { name: 'bottom', dx: 0, dy: 1, bit: 4, oppositeBit: 1 },
-          { name: 'left', dx: -1, dy: 0, bit: 8, oppositeBit: 2 },
+          { dx: 0, dy: -1, bit: 1, oppositeBit: 4 },
+          { dx: 1, dy: 0, bit: 2, oppositeBit: 8 },
+          { dx: 0, dy: 1, bit: 4, oppositeBit: 1 },
+          { dx: -1, dy: 0, bit: 8, oppositeBit: 2 },
         ];
 
-        const tileCatalog = [
-          { type: 'straight', baseMask: 1 | 4 },
-          { type: 'corner', baseMask: 1 | 2 },
-          { type: 'corner', baseMask: 2 | 4 },
-          { type: 'tee', baseMask: 1 | 2 | 4 },
-          { type: 'tee', baseMask: 2 | 4 | 8 },
-          { type: 'cross', baseMask: 1 | 2 | 4 | 8 },
-          { type: 'cap', baseMask: 2 },
-          { type: 'cap', baseMask: 8 },
+        const PIECES = [
+          { type: 'straight', baseMask: 1 | 4, label: 'Line' },
+          { type: 'straight', baseMask: 2 | 8, label: 'Line' },
+          { type: 'corner', baseMask: 1 | 2, label: 'Corner' },
+          { type: 'corner', baseMask: 2 | 4, label: 'Corner' },
+          { type: 'corner', baseMask: 4 | 8, label: 'Corner' },
+          { type: 'corner', baseMask: 8 | 1, label: 'Corner' },
+          { type: 'tee', baseMask: 1 | 2 | 4, label: 'T-Joint' },
+          { type: 'tee', baseMask: 2 | 4 | 8, label: 'T-Joint' },
+          { type: 'tee', baseMask: 1 | 4 | 8, label: 'T-Joint' },
+          { type: 'tee', baseMask: 1 | 2 | 8, label: 'T-Joint' },
+          { type: 'cross', baseMask: 1 | 2 | 4 | 8, label: 'Cross' },
+          { type: 'cap', baseMask: 2, label: 'Cap' },
+          { type: 'cap', baseMask: 8, label: 'Cap' },
+          { type: 'cap', baseMask: 1, label: 'Cap' },
+          { type: 'cap', baseMask: 4, label: 'Cap' },
         ];
 
-        const fillerCatalog = [
-          { type: 'straight', baseMask: 1 | 4 },
-          { type: 'straight', baseMask: 1 | 4 },
-          { type: 'straight', baseMask: 2 | 8 },
-          { type: 'corner', baseMask: 1 | 2 },
-          { type: 'corner', baseMask: 2 | 4 },
-          { type: 'corner', baseMask: 4 | 8 },
-          { type: 'tee', baseMask: 1 | 2 | 4 },
-          { type: 'tee', baseMask: 2 | 4 | 8 },
-          { type: 'cross', baseMask: 1 | 2 | 4 | 8 },
-          { type: 'cap', baseMask: 2 },
-          { type: 'cap', baseMask: 8 },
-        ];
+        const QUEUE_SIZE = 5;
+        const dpr = globalThis.devicePixelRatio || 1;
 
         const state = {
           gridSize: 9,
           board: [],
+          queue: [],
           start: null,
           goal: null,
           level: 1,
           score: 0,
           integrity: 0,
-          countdownRemaining: 24,
-          countdownId: null,
+          countdownRemaining: 22,
+          timerId: null,
           pendingTimeouts: [],
-          phase: 'idle',
+          phase: 'build',
+          flowActive: false,
           failureCell: null,
           lastFailureReason: '',
-          flowActive: false,
-          animationFrame: null,
           shimmerSeed: Math.random() * 360,
-          pathTileCount: 0,
+          animationFrame: null,
+          targetPathLength: 12,
+          scrapPenalty: 2,
+          initialCountdown: 22,
         };
 
-        const dpr = globalThis.devicePixelRatio || 1;
+        function randomInt(max) {
+          return Math.floor(Math.random() * max);
+        }
 
         function rotateMask(mask, rotation) {
           let result = mask;
@@ -305,31 +476,21 @@
           return bits;
         }
 
-        function maskToDefinition(mask) {
-          for (const entry of tileCatalog) {
-            for (let r = 0; r < 4; r += 1) {
-              if (rotateMask(entry.baseMask, r) === mask) {
-                return { type: entry.type, baseMask: entry.baseMask, rotation: r };
-              }
-            }
-          }
-          return { type: 'straight', baseMask: 1 | 4, rotation: 0 };
-        }
-
         function tileMask(tile) {
+          if (!tile) return 0;
           return rotateMask(tile.baseMask, tile.rotation % 4);
         }
 
-        function randomInt(max) {
-          return Math.floor(Math.random() * max);
-        }
-
-        function vectorToBit(dx, dy) {
-          if (dx === 0 && dy === -1) return 1;
-          if (dx === 1 && dy === 0) return 2;
-          if (dx === 0 && dy === 1) return 4;
-          if (dx === -1 && dy === 0) return 8;
-          return 0;
+        function createTile(piece, overrides = {}) {
+          return {
+            type: piece.type,
+            baseMask: piece.baseMask,
+            rotation: overrides.rotation ?? piece.rotation ?? 0,
+            locked: overrides.locked ?? false,
+            wetProgress: overrides.wetProgress ?? 0,
+            pulse: overrides.pulse ?? 0,
+            special: overrides.special ?? null,
+          };
         }
 
         function pushTimeout(fn, delay) {
@@ -347,9 +508,9 @@
         }
 
         function stopCountdown() {
-          if (state.countdownId !== null) {
-            clearInterval(state.countdownId);
-            state.countdownId = null;
+          if (state.timerId !== null) {
+            clearInterval(state.timerId);
+            state.timerId = null;
           }
         }
 
@@ -358,140 +519,34 @@
           messageEl.dataset.tone = tone;
         }
 
+        function adjustCountdown(amount) {
+          state.countdownRemaining = Math.max(0, Math.round(state.countdownRemaining + amount));
+          updateHud();
+        }
+
         function updateHud() {
           levelEl.textContent = state.level;
           scoreEl.textContent = state.score;
           integrityEl.textContent = `${Math.round(state.integrity * 100)}%`;
           if (state.phase === 'flow') {
             timerEl.textContent = 'Flowing';
+            timerProgressEl.style.transform = 'scaleX(0)';
           } else if (state.phase === 'win') {
             timerEl.textContent = 'Stabilized';
+            timerProgressEl.style.transform = 'scaleX(0)';
           } else {
             timerEl.textContent = `${state.countdownRemaining}s`;
+            const normalized = Math.min(1, Math.max(0, state.countdownRemaining / state.initialCountdown));
+            timerProgressEl.style.transform = `scaleX(${normalized})`;
           }
-        }
-
-        function createFillerTile() {
-          const entry = fillerCatalog[randomInt(fillerCatalog.length)];
-          return {
-            type: entry.type,
-            baseMask: entry.baseMask,
-            rotation: randomInt(4),
-            solutionRotation: null,
-            isPath: false,
-            special: null,
-            wetProgress: 0,
-            pulse: 0,
-          };
-        }
-
-        function buildPath(size) {
-          const maxAttempts = 80;
-          for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-            const startY = randomInt(size);
-            const visited = new Set([`0,${startY}`]);
-            const path = [{ x: 0, y: startY }];
-            let x = 0;
-            let y = startY;
-            let safety = 0;
-            while (x < size - 1 && safety < size * size * 2) {
-              safety += 1;
-              const options = [];
-              const addOption = (dx, dy, weight) => {
-                const nx = x + dx;
-                const ny = y + dy;
-                if (nx < 0 || nx >= size || ny < 0 || ny >= size) return;
-                const key = `${nx},${ny}`;
-                if (visited.has(key)) return;
-                options.push({ dx, dy, weight });
-              };
-
-              addOption(1, 0, 4.5);
-              addOption(0, -1, 1.2);
-              addOption(0, 1, 1.2);
-              if (x > 1) {
-                addOption(-1, 0, 0.35);
-              }
-
-              if (!options.length) {
-                break;
-              }
-
-              const weighted = options.flatMap((option) => Array.from({ length: Math.max(1, Math.round(option.weight * 10)) }, () => option));
-              const choice = weighted[randomInt(weighted.length)];
-              x += choice.dx;
-              y += choice.dy;
-              const key = `${x},${y}`;
-              visited.add(key);
-              path.push({ x, y });
-            }
-
-            if (x === size - 1) {
-              return { path, start: path[0], goal: path[path.length - 1] };
-            }
-          }
-          throw new Error('Failed to generate solvable path');
-        }
-
-        function prepareBoard() {
-          state.board = new Array(state.gridSize).fill(null).map(() => new Array(state.gridSize).fill(null));
-          for (let y = 0; y < state.gridSize; y += 1) {
-            for (let x = 0; x < state.gridSize; x += 1) {
-              state.board[y][x] = createFillerTile();
-            }
-          }
-
-          const { path, start, goal } = buildPath(state.gridSize);
-          state.start = start;
-          state.goal = goal;
-          state.pathTileCount = path.length;
-
-          path.forEach((node, index) => {
-            const connectors = [];
-            if (index === 0) {
-              connectors.push(8);
-              const next = path[index + 1];
-              connectors.push(vectorToBit(next.x - node.x, next.y - node.y));
-            } else if (index === path.length - 1) {
-              const prev = path[index - 1];
-              connectors.push(vectorToBit(prev.x - node.x, prev.y - node.y));
-              connectors.push(2);
-            } else {
-              const prev = path[index - 1];
-              const next = path[index + 1];
-              connectors.push(vectorToBit(prev.x - node.x, prev.y - node.y));
-              connectors.push(vectorToBit(next.x - node.x, next.y - node.y));
-            }
-
-            const mask = connectors.reduce((acc, bit) => acc | bit, 0);
-            const definition = maskToDefinition(mask);
-            let rotation = randomInt(4);
-            const solutionRotation = definition.rotation % 4;
-            if (rotation === solutionRotation && Math.random() < 0.7) {
-              rotation = (rotation + randomInt(3) + 1) % 4;
-            }
-
-            const tile = {
-              type: definition.type,
-              baseMask: definition.baseMask,
-              rotation,
-              solutionRotation,
-              isPath: true,
-              special: index === 0 ? 'start' : index === path.length - 1 ? 'goal' : null,
-              wetProgress: 0,
-              pulse: 0,
-            };
-
-            state.board[node.y][node.x] = tile;
-          });
         }
 
         function resetWetness() {
           for (let y = 0; y < state.gridSize; y += 1) {
             for (let x = 0; x < state.gridSize; x += 1) {
               const tile = state.board[y][x];
+              if (!tile) continue;
               tile.wetProgress = 0;
-              tile.pulse = 0;
             }
           }
         }
@@ -500,96 +555,105 @@
           state.flowActive = false;
           state.failureCell = null;
           state.lastFailureReason = '';
-          state.integrity = 0;
+          resetWetness();
         }
 
-        function resizeCanvas() {
-          const rect = boardWrap.getBoundingClientRect();
-          canvas.width = rect.width * dpr;
-          canvas.height = rect.height * dpr;
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          drawBoard();
-        }
-
-        function drawTile(tile, x, y, size, timestamp) {
-          const mask = tileMask(tile);
-          const connectors = bitsFromMask(mask);
+        function drawTileInContext(context, tile, x, y, size, timestamp, opts = {}) {
+          const background = tile ? 'rgba(15, 23, 42, 0.92)' : 'rgba(8, 15, 28, 0.85)';
+          context.fillStyle = background;
+          context.fillRect(x, y, size, size);
+          context.strokeStyle = 'rgba(100, 116, 139, 0.18)';
+          context.lineWidth = 1;
+          context.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+          if (!tile) {
+            if (opts.failureMatch) {
+              context.strokeStyle = 'rgba(248, 113, 113, 0.82)';
+              context.lineWidth = 2.5;
+              context.strokeRect(x + 2, y + 2, size - 4, size - 4);
+            }
+            return;
+          }
+          const connectors = bitsFromMask(tileMask(tile));
           const cx = x + size / 2;
           const cy = y + size / 2;
           const radius = size * 0.18;
-          const baseColor = tile.isPath ? '#11233e' : '#0b1526';
-          ctx.fillStyle = baseColor;
-          ctx.fillRect(x, y, size, size);
+          const shimmer = Math.sin((timestamp / 180 + (x + y) * 0.09 + state.shimmerSeed) % (Math.PI * 2));
+          const wetColor = `rgba(${24 + shimmer * 18}, ${209 + shimmer * 20}, ${245 + shimmer * 8}, 1)`;
+          const idleColor = 'rgba(56, 189, 248, 0.95)';
+          const lockedColor = 'rgba(248, 191, 22, 0.95)';
+          const failureColor = 'rgba(248, 113, 113, 0.9)';
+          const highlightFailure = opts.failureMatch ?? false;
+          const fillColor = highlightFailure ? failureColor : tile.special ? lockedColor : tile.wetProgress > 0 ? wetColor : idleColor;
 
-          ctx.strokeStyle = 'rgba(15, 23, 42, 0.7)';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+          if (tile.pulse > 0 && !opts.skipPulseFade) {
+            const glow = Math.min(1, tile.pulse);
+            const gradient = context.createRadialGradient(cx, cy, radius * 0.9, cx, cy, radius * 3.1);
+            gradient.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
+            gradient.addColorStop(1, 'rgba(13, 148, 136, 0)');
+            context.fillStyle = gradient;
+            context.fillRect(x, y, size, size);
+            tile.pulse = Math.max(0, tile.pulse - 0.04);
+          } else if (!opts.skipPulseFade && tile.pulse > 0) {
+            tile.pulse = Math.max(0, tile.pulse - 0.04);
+          }
 
-          const shimmer = Math.sin((timestamp / 160 + (x + y) * 0.12 + state.shimmerSeed) % (Math.PI * 2));
-          const fillColor = tile.wetProgress > 0 ? `rgba(${14 + shimmer * 20}, ${197 + shimmer * 20}, ${240 + shimmer * 5}, 1)` : '#38bdf8';
-          ctx.lineWidth = size * 0.26;
-          ctx.lineCap = 'round';
+          context.strokeStyle = 'rgba(15, 23, 42, 0.65)';
+          context.lineWidth = 1.5;
+          context.strokeRect(x + 1.2, y + 1.2, size - 2.4, size - 2.4);
+
+          context.lineWidth = size * 0.26;
+          context.lineCap = 'round';
           connectors.forEach((bit) => {
             const dir = DIRS.find((entry) => entry.bit === bit);
             if (!dir) return;
             const length = size / 2 - radius;
-            const startX = cx + dir.dx * (radius * 0.15);
-            const startY = cy + dir.dy * (radius * 0.15);
+            const startX = cx + dir.dx * (radius * 0.18);
+            const startY = cy + dir.dy * (radius * 0.18);
             const endX = cx + dir.dx * length;
             const endY = cy + dir.dy * length;
-            ctx.strokeStyle = fillColor;
-            ctx.beginPath();
-            ctx.moveTo(startX, startY);
-            ctx.lineTo(endX, endY);
-            ctx.stroke();
+            context.strokeStyle = fillColor;
+            context.beginPath();
+            context.moveTo(startX, startY);
+            context.lineTo(endX, endY);
+            context.stroke();
           });
 
-          ctx.fillStyle = fillColor;
-          ctx.beginPath();
-          ctx.arc(cx, cy, radius * (1 + tile.wetProgress * 0.2), 0, Math.PI * 2);
-          ctx.fill();
+          context.fillStyle = fillColor;
+          context.beginPath();
+          context.arc(cx, cy, radius * (1 + tile.wetProgress * 0.25), 0, Math.PI * 2);
+          context.fill();
 
           if (tile.special === 'start') {
-            ctx.fillStyle = 'rgba(249, 115, 22, 0.95)';
-            ctx.beginPath();
-            ctx.moveTo(x + size * 0.16, y + size * 0.3);
-            ctx.lineTo(x + size * 0.36, y + size * 0.5);
-            ctx.lineTo(x + size * 0.16, y + size * 0.7);
-            ctx.closePath();
-            ctx.fill();
+            context.fillStyle = 'rgba(249, 115, 22, 0.95)';
+            context.beginPath();
+            context.moveTo(x + size * 0.2, y + size * 0.32);
+            context.lineTo(x + size * 0.2, y + size * 0.68);
+            context.lineTo(x + size * 0.42, y + size * 0.5);
+            context.closePath();
+            context.fill();
           } else if (tile.special === 'goal') {
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.95)';
-            ctx.fillRect(x + size * 0.62, y + size * 0.3, size * 0.2, size * 0.4);
-          }
-
-          if (state.failureCell) {
-            const cellX = Math.round(x / size);
-            const cellY = Math.round(y / size);
-            if (cellX === state.failureCell.x && cellY === state.failureCell.y) {
-              ctx.strokeStyle = 'rgba(248, 113, 113, 0.9)';
-              ctx.lineWidth = size * 0.12;
-              ctx.beginPath();
-              ctx.arc(cx, cy, size * 0.36, 0, Math.PI * 2);
-              ctx.stroke();
-            }
+            context.fillStyle = 'rgba(16, 185, 129, 0.95)';
+            context.fillRect(x + size * 0.58, y + size * 0.32, size * 0.18, size * 0.36);
           }
         }
 
         function drawBoard(timestamp = performance.now()) {
-          if (!state.board.length) return;
-          const width = canvas.clientWidth;
-          const height = canvas.clientHeight;
+          const rect = canvas.getBoundingClientRect();
+          const width = rect.width;
+          const height = rect.height;
           ctx.clearRect(0, 0, width, height);
           const tileSize = width / state.gridSize;
           for (let y = 0; y < state.gridSize; y += 1) {
             for (let x = 0; x < state.gridSize; x += 1) {
-              drawTile(state.board[y][x], x * tileSize, y * tileSize, tileSize, timestamp);
+              const tile = state.board[y][x];
+              const failureMatch = state.failureCell && state.failureCell.x === x && state.failureCell.y === y;
+              drawTileInContext(ctx, tile, x * tileSize, y * tileSize, tileSize, timestamp, { failureMatch });
             }
           }
           ctx.strokeStyle = 'rgba(15, 118, 110, 0.35)';
           ctx.lineWidth = 1;
           for (let i = 1; i < state.gridSize; i += 1) {
-            const pos = i * (width / state.gridSize);
+            const pos = i * tileSize;
             ctx.beginPath();
             ctx.moveTo(pos, 0);
             ctx.lineTo(pos, height);
@@ -601,7 +665,187 @@
           }
         }
 
+        function drawQueue() {
+          queueEl.innerHTML = '';
+          const now = performance.now();
+          state.queue.forEach((piece, index) => {
+            const item = document.createElement('div');
+            item.className = 'queue-item';
+            if (index === 0) item.classList.add('active');
+            const preview = document.createElement('canvas');
+            preview.width = 72;
+            preview.height = 72;
+            const context = preview.getContext('2d');
+            const tempTile = createTile(piece);
+            drawTileInContext(context, tempTile, 6, 6, 60, now, { skipPulseFade: true });
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+            const title = document.createElement('span');
+            title.className = 'title';
+            title.textContent = piece.label;
+            const hint = document.createElement('span');
+            hint.className = 'hint';
+            hint.textContent = index === 0 ? 'Deploy this next.' : 'On deck';
+            meta.appendChild(title);
+            meta.appendChild(hint);
+            item.appendChild(preview);
+            item.appendChild(meta);
+            queueEl.appendChild(item);
+          });
+        }
+
+        function refillQueue() {
+          while (state.queue.length < QUEUE_SIZE) {
+            const piece = PIECES[randomInt(PIECES.length)];
+            state.queue.push({ ...piece, rotation: randomInt(4) });
+          }
+          drawQueue();
+        }
+
+        function resizeCanvas() {
+          const rect = boardWrap.getBoundingClientRect();
+          canvas.width = rect.width * dpr;
+          canvas.height = rect.height * dpr;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          drawBoard();
+        }
+
+        function traceChainForIntegrity() {
+          if (!state.start) return { length: 0, complete: false };
+          let current = { x: state.start.x, y: state.start.y };
+          let incoming = 8;
+          const visited = new Set();
+          let length = 0;
+          while (true) {
+            const tile = state.board[current.y][current.x];
+            if (!tile) break;
+            const connectors = bitsFromMask(tileMask(tile));
+            if (!connectors.includes(incoming)) break;
+            length += 1;
+            if (current.x === state.goal.x && current.y === state.goal.y) {
+              return { length, complete: true };
+            }
+            const outgoing = connectors.filter((bit) => bit !== incoming);
+            if (outgoing.length !== 1) break;
+            const dir = DIRS.find((entry) => entry.bit === outgoing[0]);
+            if (!dir) break;
+            const nx = current.x + dir.dx;
+            const ny = current.y + dir.dy;
+            if (nx < 0 || nx >= state.gridSize || ny < 0 || ny >= state.gridSize) break;
+            const key = `${nx},${ny},${dir.oppositeBit}`;
+            if (visited.has(key)) break;
+            const nextTile = state.board[ny][nx];
+            if (!nextTile) {
+              length += 0.25;
+              break;
+            }
+            visited.add(key);
+            current = { x: nx, y: ny };
+            incoming = dir.oppositeBit;
+          }
+          return { length, complete: false };
+        }
+
+        function updateIntegrity() {
+          const chain = traceChainForIntegrity();
+          const ratio = state.targetPathLength ? Math.min(1, chain.length / state.targetPathLength) : 0;
+          state.integrity = ratio;
+          if (chain.complete && state.phase === 'build') {
+            setMessage('Coolant route traced! Release when you are ready or squeeze in extra score.', 'success');
+          }
+          updateHud();
+        }
+
+        function rotateQueue(delta) {
+          if (!state.queue.length) return;
+          const piece = state.queue[0];
+          piece.rotation = (piece.rotation + delta + 4) % 4;
+          drawQueue();
+        }
+
+        function scrapQueuePiece() {
+          if (!state.queue.length) return;
+          state.queue.shift();
+          adjustCountdown(-state.scrapPenalty);
+          refillQueue();
+          setMessage('Scrapped conduit. Surge accelerated.', 'danger');
+        }
+
+        function placeTile(x, y) {
+          const tile = state.board[y][x];
+          if (tile && tile.locked) {
+            setMessage('Core fixtures are immutable. Route around them.');
+            return;
+          }
+          if (!state.queue.length) {
+            setMessage('Queue depleted. Hold on until new conduits arrive.');
+            return;
+          }
+          if (!tile) {
+            const piece = { ...state.queue.shift() };
+            const placed = createTile(piece);
+            placed.pulse = 1;
+            state.board[y][x] = placed;
+            refillQueue();
+            updateIntegrity();
+            drawBoard();
+            setMessage('Conduit placed. Keep building towards the drain.');
+          } else {
+            tile.rotation = (tile.rotation + 1) % 4;
+            tile.pulse = 1;
+            updateIntegrity();
+            drawBoard();
+            setMessage('Orientation adjusted. Watch the flow vector.');
+          }
+        }
+
+        function removeTile(x, y) {
+          const tile = state.board[y][x];
+          if (!tile || tile.locked) {
+            setMessage('Cannot purge structural fixtures.');
+            return;
+          }
+          state.board[y][x] = null;
+          adjustCountdown(-3);
+          setMessage('Conduit purged. Surge hastened by 3 seconds.', 'danger');
+          updateIntegrity();
+          drawBoard();
+        }
+
+        function handleBoardClick(event) {
+          if (state.phase !== 'build') return;
+          const rect = canvas.getBoundingClientRect();
+          const tileSize = rect.width / state.gridSize;
+          const x = Math.floor((event.clientX - rect.left) / tileSize);
+          const y = Math.floor((event.clientY - rect.top) / tileSize);
+          if (x < 0 || y < 0 || x >= state.gridSize || y >= state.gridSize) return;
+          placeTile(x, y);
+        }
+
+        function handleContextMenu(event) {
+          if (state.phase !== 'build') return;
+          event.preventDefault();
+          const rect = canvas.getBoundingClientRect();
+          const tileSize = rect.width / state.gridSize;
+          const x = Math.floor((event.clientX - rect.left) / tileSize);
+          const y = Math.floor((event.clientY - rect.top) / tileSize);
+          if (x < 0 || y < 0 || x >= state.gridSize || y >= state.gridSize) return;
+          if (event.shiftKey) {
+            removeTile(x, y);
+            return;
+          }
+          const tile = state.board[y][x];
+          if (!tile || tile.locked) return;
+          tile.rotation = (tile.rotation + 1) % 4;
+          tile.pulse = 1;
+          updateIntegrity();
+          drawBoard();
+        }
+
         function traceFlow() {
+          if (!state.start || !state.goal) {
+            return { success: false, sequence: [], failure: null, reason: 'Grid not initialized.' };
+          }
           const sequence = [];
           const visited = new Set();
           let current = { x: state.start.x, y: state.start.y };
@@ -609,56 +853,64 @@
           while (true) {
             const key = `${current.x},${current.y}`;
             if (visited.has(key)) {
-              return { success: false, sequence, failure: current, reason: 'Coolant loop detected. Too many junctions.' };
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Coolant loop detected. Too many junctions.' };
             }
             visited.add(key);
             const tile = state.board[current.y][current.x];
+            if (!tile) {
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Gap in the conduit network.' };
+            }
             const connectors = bitsFromMask(tileMask(tile));
             if (!connectors.includes(incoming)) {
-              return { success: false, sequence, failure: current, reason: 'Pressure leak detected. Pipe orientation mismatch.' };
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Orientation mismatch. Pressure leaking upstream.' };
             }
             sequence.push({ x: current.x, y: current.y });
             if (current.x === state.goal.x && current.y === state.goal.y) {
               if (connectors.includes(2)) {
                 return { success: true, sequence, failure: null, reason: '' };
               }
-              return { success: false, sequence, failure: current, reason: 'Drain not engaged. Rotate the outlet.' };
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Drain not engaged.' };
             }
-            const outgoingOptions = connectors.filter((bit) => bit !== incoming);
-            if (outgoingOptions.length !== 1) {
-              return { success: false, sequence, failure: current, reason: 'Flow split occurred. Limit to a single outbound pipe.' };
+            const outgoing = connectors.filter((bit) => bit !== incoming);
+            if (outgoing.length !== 1) {
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Flow split detected. Keep the conduit singular.' };
             }
-            const outBit = outgoingOptions[0];
-            const dir = DIRS.find((entry) => entry.bit === outBit);
+            const dir = DIRS.find((entry) => entry.bit === outgoing[0]);
             if (!dir) {
-              return { success: false, sequence, failure: current, reason: 'Routing failure.' };
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Routing failure.' };
             }
             const nx = current.x + dir.dx;
             const ny = current.y + dir.dy;
             if (nx < 0 || nx >= state.gridSize || ny < 0 || ny >= state.gridSize) {
-              return { success: false, sequence, failure: current, reason: 'Coolant escaped the lattice bounds.' };
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Coolant escaped the lattice bounds.' };
             }
-            current = { x: nx, y: ny };
+            const nextTile = state.board[ny][nx];
+            if (!nextTile) {
+              return { success: false, sequence, failure: { x: nx, y: ny }, reason: 'Coolant hit an unbuilt segment.' };
+            }
             incoming = dir.oppositeBit;
+            current = { x: nx, y: ny };
           }
         }
 
-        function animateFlow(sequence, success, reason) {
+        function animateFlow(sequence, success, reason, failureCell) {
           if (!sequence.length) {
-            handleFailure(reason || 'No coolant path detected.', state.start);
+            handleFailure(reason || 'Coolant failed to find a conduit.', failureCell || state.start);
             return;
           }
           state.flowActive = true;
           state.phase = 'flow';
-          updateHud();
           clearPendingTimeouts();
           resetWetness();
+          updateHud();
           const total = sequence.length;
           sequence.forEach((cell, index) => {
             pushTimeout(() => {
               const tile = state.board[cell.y][cell.x];
+              if (!tile) return;
               tile.wetProgress = 1;
-              state.integrity = (index + 1) / total;
+              tile.pulse = 0.6;
+              state.integrity = Math.min(1, (index + 1) / Math.max(1, state.targetPathLength));
               drawBoard();
               updateHud();
               if (index === total - 1) {
@@ -666,62 +918,45 @@
                   if (success) {
                     handleSuccess();
                   } else {
-                    handleFailure(reason, cell);
+                    handleFailure(reason, failureCell || cell);
                   }
-                }, 360);
+                }, 420);
               }
-            }, index * 180);
+            }, index * 220);
           });
         }
 
         function handleSuccess() {
           state.phase = 'win';
-          const reward = Math.round(120 + state.countdownRemaining * 6 + state.level * 12);
+          const reward = Math.round(180 + state.countdownRemaining * 8 + state.level * 12);
           state.score += reward;
-          setMessage(`Coolant stabilized! +${reward} score. Preparing a denser lattice...`, 'success');
-          state.flowActive = false;
+          state.integrity = 1;
           updateHud();
+          setMessage(`Coolant stabilized! +${reward} score. Reactor escalating.`, 'success');
           pushTimeout(() => {
             state.level += 1;
-            const nextCountdown = Math.max(14, 26 - state.level * 2);
-            nextLevel(nextCountdown);
+            initializeLevel();
           }, 1500);
         }
 
         function handleFailure(reason, cell) {
-          const failureReason = reason || 'Coolant destabilized. Check your junctions.';
-          state.phase = 'idle';
-          state.failureCell = cell;
-          state.lastFailureReason = failureReason;
-          state.integrity = 0;
-          state.score = Math.max(0, state.score - 45);
-          setMessage(`${failureReason} Integrity penalty applied. Reconfigure and trigger flow again.`, 'danger');
+          state.phase = 'build';
           state.flowActive = false;
+          state.failureCell = cell || null;
+          state.lastFailureReason = reason || 'Coolant destabilized.';
+          state.score = Math.max(0, state.score - 120);
+          state.integrity = 0;
+          state.countdownRemaining = Math.max(8, state.countdownRemaining - 2);
+          state.initialCountdown = state.countdownRemaining;
+          refillQueue();
+          setMessage(`${state.lastFailureReason} Score penalty applied. Rebuild before the next surge.`, 'danger');
           updateHud();
+          drawBoard();
           pushTimeout(() => {
             state.failureCell = null;
             drawBoard();
-          }, 2200);
-          pushTimeout(() => {
-            state.countdownRemaining = Math.max(10, state.countdownRemaining - 2);
             startCountdown();
           }, 1600);
-        }
-
-        function startCountdown() {
-          stopCountdown();
-          state.phase = 'countdown';
-          updateHud();
-          setMessage('Rotate tiles to forge an unbroken conduit, then release the coolant surge.');
-          state.countdownId = setInterval(() => {
-            state.countdownRemaining -= 1;
-            if (state.countdownRemaining <= 0) {
-              stopCountdown();
-              setMessage('Surge released automatically! Hold your breath...', 'danger');
-              runFlow();
-            }
-            updateHud();
-          }, 1000);
         }
 
         function runFlow() {
@@ -729,41 +964,68 @@
           stopCountdown();
           const result = traceFlow();
           clearFlowState();
-          animateFlow(result.sequence, result.success, result.reason);
+          animateFlow(result.sequence, result.success, result.reason, result.failure);
         }
 
-        function nextLevel(countdownOverride) {
+        function startCountdown() {
+          stopCountdown();
+          state.phase = 'build';
+          updateHud();
+          setMessage('Rotate and deploy conduits. Surge will auto-trigger when the timer hits zero.');
+          state.timerId = setInterval(() => {
+            state.countdownRemaining -= 1;
+            if (state.countdownRemaining <= 0) {
+              stopCountdown();
+              setMessage('Surge triggered! Hold on...', 'danger');
+              runFlow();
+            }
+            updateHud();
+          }, 1000);
+        }
+
+        function prepareBoard() {
+          state.board = new Array(state.gridSize)
+            .fill(null)
+            .map(() => new Array(state.gridSize).fill(null));
+          const startY = Math.floor(state.gridSize / 2);
+          const goalY = Math.min(state.gridSize - 2, Math.max(1, startY + randomInt(5) - 2));
+          state.start = { x: 0, y: startY };
+          state.goal = { x: state.gridSize - 1, y: goalY };
+          state.board[startY][0] = createTile({ type: 'source', baseMask: 2 | 8 }, { locked: true, special: 'start' });
+          state.board[goalY][state.gridSize - 1] = createTile({ type: 'sink', baseMask: 2 | 8 }, { locked: true, special: 'goal' });
+          const hazardCount = Math.min(4, Math.floor(state.level / 2));
+          for (let i = 0; i < hazardCount; i += 1) {
+            const hx = randomInt(state.gridSize - 2) + 1;
+            const hy = randomInt(state.gridSize - 2) + 1;
+            if ((hx === state.goal.x && hy === state.goal.y) || (hx === state.start.x && hy === state.start.y)) {
+              continue;
+            }
+            if (state.board[hy][hx]) continue;
+            const hazardPiece = PIECES[randomInt(4)];
+            const blocker = createTile(hazardPiece, { locked: true, rotation: randomInt(4) });
+            blocker.pulse = 0.2;
+            state.board[hy][hx] = blocker;
+          }
+          state.targetPathLength = Math.abs(state.goal.x - state.start.x) + Math.abs(state.goal.y - state.start.y) + 3 + hazardCount;
+        }
+
+        function initializeLevel() {
           stopCountdown();
           clearPendingTimeouts();
+          state.phase = 'build';
+          state.flowActive = false;
+          state.failureCell = null;
+          state.queue = [];
+          state.shimmerSeed = Math.random() * 360;
+          state.initialCountdown = Math.max(14, 26 - state.level * 2);
+          state.countdownRemaining = state.initialCountdown;
           prepareBoard();
-          resetWetness();
-          clearFlowState();
-          state.countdownRemaining = typeof countdownOverride === 'number' ? Math.round(countdownOverride) : Math.max(14, 28 - state.level * 2);
-          state.phase = 'countdown';
+          refillQueue();
+          updateIntegrity();
           drawBoard();
           updateHud();
-          setMessage('New lattice online. Rotate tiles and unleash the coolant when ready.');
+          setMessage('Fresh lattice online. Queue conduits and prep for the surge.');
           startCountdown();
-        }
-
-        function handleClick(event) {
-          if (state.phase === 'flow') return;
-          const rect = canvas.getBoundingClientRect();
-          const size = rect.width / state.gridSize;
-          const x = Math.floor((event.clientX - rect.left) / size);
-          const y = Math.floor((event.clientY - rect.top) / size);
-          if (Number.isNaN(x) || Number.isNaN(y)) return;
-          if (x < 0 || x >= state.gridSize || y < 0 || y >= state.gridSize) return;
-          const tile = state.board[y][x];
-          tile.rotation = (tile.rotation + 1) % 4;
-          tile.pulse = 1;
-          tile.wetProgress = 0;
-          const solved = state.board
-            .flat()
-            .filter((cell) => cell.isPath && (cell.rotation % 4) === cell.solutionRotation).length;
-          state.integrity = state.pathTileCount ? solved / state.pathTileCount : 0;
-          drawBoard();
-          updateHud();
         }
 
         function tick(timestamp) {
@@ -772,30 +1034,37 @@
         }
 
         function init() {
+          const resizeObserver = new ResizeObserver(resizeCanvas);
+          resizeObserver.observe(boardWrap);
+          registerCleanup(() => resizeObserver.disconnect());
+          resizeCanvas();
+          initializeLevel();
+          state.animationFrame = requestAnimationFrame(tick);
+          canvas.addEventListener('click', handleBoardClick);
+          registerCleanup(() => canvas.removeEventListener('click', handleBoardClick));
+          canvas.addEventListener('contextmenu', handleContextMenu);
+          registerCleanup(() => canvas.removeEventListener('contextmenu', handleContextMenu));
+          const rotateLeftHandler = () => rotateQueue(-1);
+          const rotateRightHandler = () => rotateQueue(1);
+          rotateLeftBtn.addEventListener('click', rotateLeftHandler);
+          rotateRightBtn.addEventListener('click', rotateRightHandler);
+          scrapBtn.addEventListener('click', scrapQueuePiece);
+          registerCleanup(() => {
+            rotateLeftBtn.removeEventListener('click', rotateLeftHandler);
+            rotateRightBtn.removeEventListener('click', rotateRightHandler);
+            scrapBtn.removeEventListener('click', scrapQueuePiece);
+          });
+          forceButton.addEventListener('click', runFlow);
+          registerCleanup(() => forceButton.removeEventListener('click', runFlow));
+          resetButton.addEventListener('click', initializeLevel);
+          registerCleanup(() => resetButton.removeEventListener('click', initializeLevel));
           registerCleanup(() => {
             stopCountdown();
             clearPendingTimeouts();
             if (state.animationFrame) {
               cancelAnimationFrame(state.animationFrame);
-              state.animationFrame = null;
             }
           });
-          const resizeObserver = new ResizeObserver(resizeCanvas);
-          resizeObserver.observe(boardWrap);
-          registerCleanup(() => resizeObserver.disconnect());
-          resizeCanvas();
-          nextLevel(state.countdownRemaining);
-          state.animationFrame = requestAnimationFrame(tick);
-          canvas.addEventListener('click', handleClick);
-          registerCleanup(() => canvas.removeEventListener('click', handleClick));
-          forceButton.addEventListener('click', runFlow);
-          registerCleanup(() => forceButton.removeEventListener('click', runFlow));
-          const manualLevelHandler = () => {
-            const manualCountdown = Math.max(18, 30 - state.level * 2);
-            nextLevel(manualCountdown);
-          };
-          newLevelButton.addEventListener('click', manualLevelHandler);
-          registerCleanup(() => newLevelButton.removeEventListener('click', manualLevelHandler));
         }
 
         init();
