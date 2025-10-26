@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Neon Pipelines</title>
+    <style>
+      :host {
+        display: block;
+        width: 100%;
+        height: 100%;
+        font-family: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--text-primary, #f8fafc);
+        background: radial-gradient(circle at 20% 20%, rgba(46, 213, 255, 0.12), transparent 60%),
+          radial-gradient(circle at 80% 30%, rgba(255, 55, 145, 0.16), transparent 55%),
+          linear-gradient(160deg, rgba(10, 17, 40, 0.95), rgba(5, 9, 24, 0.98));
+      }
+
+      body {
+        margin: 0;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        background: transparent;
+      }
+
+      .hud {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        pointer-events: none;
+        padding: 24px;
+      }
+
+      .hud-top {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        font-size: 1.1rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(240, 249, 255, 0.85);
+        text-shadow: 0 0 10px rgba(94, 234, 212, 0.35);
+      }
+
+      .hud-bottom {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.95rem;
+        color: rgba(226, 232, 240, 0.8);
+        text-shadow: 0 0 12px rgba(14, 165, 233, 0.45);
+      }
+
+      canvas {
+        width: min(360px, 80vw);
+        height: auto;
+        max-height: 80vh;
+        border-radius: 24px;
+        box-shadow: 0 25px 55px rgba(15, 23, 42, 0.75), 0 0 0 1px rgba(148, 163, 184, 0.25);
+      }
+
+      .container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .pulse {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .pulse::before {
+        content: "";
+        display: inline-block;
+        width: 0.65rem;
+        height: 0.65rem;
+        border-radius: 999px;
+        background: #38bdf8;
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.9);
+        animation: throb 1.8s ease-in-out infinite;
+      }
+
+      @keyframes throb {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 0.75;
+        }
+        50% {
+          transform: scale(1.35);
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <canvas id="game" width="360" height="640" aria-label="Flappy neon bird playground"></canvas>
+      <div class="hud" aria-hidden="true">
+        <div class="hud-top">
+          <span id="score">000</span>
+          <span id="best">BEST 000</span>
+        </div>
+        <div class="hud-bottom">
+          <span class="pulse" id="hint">Tap or press space to boost</span>
+          <span id="status">Stay between the gates</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const root = document.currentScript.getRootNode();
+      const canvas = root.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = root.getElementById("score");
+      const bestEl = root.getElementById("best");
+      const statusEl = root.getElementById("status");
+      const hintEl = root.getElementById("hint");
+
+      const state = {
+        running: false,
+        gameOver: false,
+        width: canvas.width,
+        height: canvas.height,
+        gravity: 900,
+        jump: -320,
+        pipeSpacing: 1.65,
+        pipeGap: 180,
+        pipeSpeed: 190,
+        timeSincePipe: 0,
+        bird: {
+          x: 120,
+          y: 320,
+          radius: 18,
+          velocity: 0,
+          wobble: 0,
+        },
+        pipes: [],
+        score: 0,
+        best: 0,
+        multiplier: 1,
+        lastSpawnY: 320,
+      };
+
+      function formatScore(value) {
+        return value.toString().padStart(3, "0");
+      }
+
+      function updateHud() {
+        scoreEl.textContent = formatScore(Math.floor(state.score));
+        bestEl.textContent = `BEST ${formatScore(Math.floor(state.best))}`;
+        if (!state.running) {
+          statusEl.textContent = state.gameOver ? "Tap to respawn" : "Stay between the gates";
+          hintEl.textContent = state.gameOver ? "Space or tap to try again" : "Tap or press space to boost";
+        } else {
+          statusEl.textContent = `x${state.multiplier.toFixed(1)} speed`; 
+        }
+      }
+
+      function resetGame() {
+        state.running = false;
+        state.gameOver = false;
+        state.bird.y = state.height / 2;
+        state.bird.velocity = 0;
+        state.bird.wobble = 0;
+        state.pipes = [];
+        state.score = 0;
+        state.multiplier = 1;
+        state.timeSincePipe = 0;
+        state.pipeGap = 180;
+        state.pipeSpeed = 190;
+        state.lastSpawnY = state.height / 2;
+        updateHud();
+        draw(0);
+      }
+
+      function spawnPipe() {
+        const margin = 80;
+        const center = Math.max(
+          margin + state.pipeGap / 2,
+          Math.min(state.height - margin - state.pipeGap / 2, state.lastSpawnY + (Math.random() * 120 - 60))
+        );
+        state.lastSpawnY = center;
+        state.pipes.push({
+          x: state.width + 60,
+          width: 80,
+          gapCenter: center,
+          passed: false,
+        });
+      }
+
+      function flap() {
+        if (state.gameOver) {
+          resetGame();
+          state.running = true;
+          updateHud();
+          return;
+        }
+        if (!state.running) {
+          state.running = true;
+          state.timeSincePipe = state.pipeSpacing;
+          updateHud();
+        }
+        state.bird.velocity = state.jump;
+        state.bird.wobble = 0.5;
+      }
+
+      function update(dt) {
+        if (!state.running) {
+          state.bird.wobble += dt * 2.8;
+          state.bird.y = state.height / 2 + Math.sin(state.bird.wobble) * 12;
+          return;
+        }
+
+        state.timeSincePipe += dt;
+        if (state.timeSincePipe >= state.pipeSpacing) {
+          spawnPipe();
+          state.timeSincePipe = 0;
+          state.pipeSpacing = Math.max(1.05, state.pipeSpacing * 0.985);
+          state.pipeGap = Math.max(120, state.pipeGap * 0.992);
+          state.pipeSpeed = Math.min(320, state.pipeSpeed + 2);
+        }
+
+        state.bird.velocity += state.gravity * dt;
+        state.bird.y += state.bird.velocity * dt;
+
+        for (const pipe of state.pipes) {
+          pipe.x -= state.pipeSpeed * dt;
+          if (!pipe.passed && pipe.x + pipe.width < state.bird.x - state.bird.radius) {
+            pipe.passed = true;
+            state.score += 1 * state.multiplier;
+            state.multiplier = Math.min(9, state.multiplier + 0.15);
+            updateHud();
+          }
+        }
+
+        if (state.pipes.length && state.pipes[0].x + state.pipes[0].width < -10) {
+          state.pipes.shift();
+        }
+
+        const topLimit = state.bird.radius + 4;
+        const bottomLimit = state.height - state.bird.radius - 4;
+        if (state.bird.y < topLimit || state.bird.y > bottomLimit) {
+          triggerGameOver();
+        }
+
+        for (const pipe of state.pipes) {
+          const halfGap = state.pipeGap / 2;
+          const topPipeBottom = pipe.gapCenter - halfGap;
+          const bottomPipeTop = pipe.gapCenter + halfGap;
+          const birdLeft = state.bird.x - state.bird.radius + 6;
+          const birdRight = state.bird.x + state.bird.radius - 6;
+          if (birdRight > pipe.x && birdLeft < pipe.x + pipe.width) {
+            if (state.bird.y - state.bird.radius < topPipeBottom || state.bird.y + state.bird.radius > bottomPipeTop) {
+              triggerGameOver();
+              break;
+            }
+          }
+        }
+      }
+
+      function triggerGameOver() {
+        if (state.gameOver) return;
+        state.gameOver = true;
+        state.running = false;
+        state.best = Math.max(state.best, state.score);
+        state.multiplier = 1;
+        updateHud();
+      }
+
+      function draw(now) {
+        const glow = ctx.createLinearGradient(0, 0, 0, state.height);
+        glow.addColorStop(0, "#0f172a");
+        glow.addColorStop(1, "#020617");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, state.width, state.height);
+
+        // Background stars
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = "#38bdf8";
+        for (let i = 0; i < 24; i++) {
+          const x = (now * 0.015 + i * 75) % state.width;
+          const y = (i * 131 + now * 0.04) % state.height;
+          ctx.fillRect(x, y, 2, 2);
+        }
+        ctx.restore();
+
+        // Pipes
+        for (const pipe of state.pipes) {
+          const halfGap = state.pipeGap / 2;
+          const topHeight = pipe.gapCenter - halfGap;
+          const bottomY = pipe.gapCenter + halfGap;
+          const gradTop = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipe.width, 0);
+          gradTop.addColorStop(0, "#6366f1");
+          gradTop.addColorStop(1, "#38bdf8");
+          ctx.fillStyle = gradTop;
+          ctx.fillRect(pipe.x, 0, pipe.width, topHeight);
+
+          const gradBottom = ctx.createLinearGradient(pipe.x, bottomY, pipe.x + pipe.width, bottomY + 20);
+          gradBottom.addColorStop(0, "#38bdf8");
+          gradBottom.addColorStop(1, "#22d3ee");
+          ctx.fillStyle = gradBottom;
+          ctx.fillRect(pipe.x, bottomY, pipe.width, state.height - bottomY);
+
+          ctx.fillStyle = "rgba(94, 234, 212, 0.3)";
+          ctx.fillRect(pipe.x - 6, topHeight - 12, pipe.width + 12, 12);
+          ctx.fillRect(pipe.x - 6, bottomY, pipe.width + 12, 12);
+        }
+
+        // Bird
+        ctx.save();
+        ctx.translate(state.bird.x, state.bird.y);
+        const tilt = Math.max(-0.45, Math.min(0.65, state.bird.velocity / 420));
+        ctx.rotate(tilt);
+        const wingFlap = state.running ? Math.sin(now * 0.02) : Math.sin(now * 0.01);
+        ctx.fillStyle = "#facc15";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, state.bird.radius + 4, state.bird.radius, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#f97316";
+        ctx.beginPath();
+        ctx.moveTo(state.bird.radius + 2, -4);
+        ctx.lineTo(state.bird.radius + 18, 0);
+        ctx.lineTo(state.bird.radius + 2, 4);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(248, 250, 252, 0.9)";
+        ctx.beginPath();
+        ctx.arc(8, -6, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#1e293b";
+        ctx.beginPath();
+        ctx.arc(10, -6, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(14, 165, 233, 0.65)";
+        ctx.beginPath();
+        ctx.ellipse(-6, 10 + wingFlap * 4, 16, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        if (state.gameOver) {
+          ctx.fillStyle = "rgba(2, 6, 23, 0.6)";
+          ctx.fillRect(0, state.height / 2 - 70, state.width, 140);
+          ctx.fillStyle = "#f8fafc";
+          ctx.textAlign = "center";
+          ctx.font = "bold 32px 'Space Grotesk', sans-serif";
+          ctx.fillText("Run Ended", state.width / 2, state.height / 2 - 18);
+          ctx.font = "20px 'Space Grotesk', sans-serif";
+          ctx.fillText("Score: " + Math.floor(state.score), state.width / 2, state.height / 2 + 14);
+          ctx.fillStyle = "#38bdf8";
+          ctx.font = "16px 'Space Grotesk', sans-serif";
+          ctx.fillText("Tap or press space", state.width / 2, state.height / 2 + 46);
+        }
+      }
+
+      let lastTime = performance.now();
+      function loop(now) {
+        const dt = Math.min((now - lastTime) / 1000, 0.1);
+        lastTime = now;
+        update(dt);
+        draw(now);
+        requestAnimationFrame(loop);
+      }
+
+      resetGame();
+      requestAnimationFrame(loop);
+      updateHud();
+
+      const hostDocument = root.host?.ownerDocument || document;
+
+      function onPointerDown(event) {
+        event.preventDefault();
+        flap();
+      }
+
+      function onKeyDown(event) {
+        if (event.code === "Space" || event.code === "ArrowUp") {
+          event.preventDefault();
+          flap();
+        }
+      }
+
+      root.addEventListener("pointerdown", onPointerDown);
+      hostDocument.addEventListener("keydown", onKeyDown);
+
+      if (!root.__sandboxCleanup) {
+        root.__sandboxCleanup = [];
+      }
+
+      root.__sandboxCleanup.push(() => {
+        root.removeEventListener("pointerdown", onPointerDown);
+        hostDocument.removeEventListener("keydown", onKeyDown);
+      });
+    </script>
+  </body>
+</html>
