@@ -86,6 +86,7 @@
               v-if="selectedProject"
               :key="selectedProject.slug"
               :project="selectedProject"
+              :fullscreen="isFullscreen"
               @loading="handleSandboxLoading"
               @loaded="handleSandboxLoaded"
               @error="handleSandboxError"
@@ -572,28 +573,28 @@ onBeforeUnmount(() => {
   background: linear-gradient(180deg, rgba(2, 6, 23, 0.95), rgba(8, 28, 58, 0.9));
   margin: 0;
   padding: clamp(1.5rem, 4vw, 3rem);
+  /* Fill area with sandbox */
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: 1.25rem;
+  grid-template-rows: 1fr;
+  place-items: stretch;
+  gap: 0;
   overflow: hidden;
+  /* Expose a viewport-min CSS var for shadow children if needed */
+  --sandbox-viewport-min: min(100svw, 100svh);
 }
 
-.project-content.fullscreen .agent-cloud {
-  justify-content: flex-start;
-}
-
-.project-content.fullscreen .sandbox {
-  min-height: unset;
-  height: 100%;
-  display: flex;
-}
-
-.project-content.fullscreen .sandbox-host {
-  flex: 1;
-}
-
+/* Hide non-essential chrome to maximize canvas area */
+.project-content.fullscreen .project-header,
+.project-content.fullscreen .agent-cloud,
 .project-content.fullscreen .sandbox-status {
-  justify-content: flex-start;
+  display: none;
+}
+
+/* Let sandbox fill the fullscreen grid area */
+.project-content.fullscreen .sandbox,
+.project-content.fullscreen .sandbox-host {
+  width: 100%;
+  height: 100%;
 }
 
 .fullscreen-close {
@@ -619,6 +620,11 @@ onBeforeUnmount(() => {
 .fullscreen-close:hover {
   border-color: rgba(248, 250, 252, 0.7);
   background: rgba(30, 41, 59, 0.9);
+}
+
+/* Ensure non-fullscreen layout resets any fullscreen height */
+.project-content:not(.fullscreen) .sandbox {
+  height: auto;
 }
 
 @keyframes spin {
