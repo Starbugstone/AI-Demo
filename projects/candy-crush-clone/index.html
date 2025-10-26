@@ -557,7 +557,7 @@
         const applyCandyStyle = (cell, candyId, options = {}) => {
           const { animate = false } = options;
           const { element } = cell;
-          element.classList.remove('selected', 'invalid', 'clearing', 'spawn', 'upgrade', 'blast', 'bomb', 'hint');
+          element.classList.remove('selected', 'invalid', 'clearing', 'spawn', 'upgrade', 'blast', 'bomb', 'orb', 'cross', 'hint');
           cell.special = null;
           
           if (!candyId) {
@@ -593,7 +593,7 @@
           const candy = paletteById[baseType || cell.type];
           cell.type = null;
           cell.special = special;
-          element.classList.remove('empty', 'hint');
+          element.classList.remove('empty', 'hint', 'selected', 'invalid', 'clearing', 'spawn', 'upgrade', 'blast', 'bomb', 'orb', 'cross');
           element.dataset.candy = '';
           
           if (special === 'bomb') {
