@@ -498,50 +498,70 @@ const injectHtml = async (html, baseUrl, currentTicket) => {
     },
   })
 
-  scriptsBucket.forEach((entry, i) => {
+  // Execute scripts sequentially to preserve order and allow awaiting async wrappers
+  // Expose instrumented globals for module-based execution
+  globalThis.__sandboxRoot = target
+  globalThis.__sandboxWindow = instrumentedWindow
+  globalThis.__sandboxDocument = instrumentedDocument
+  globalThis.__sandboxRAF = instrumentedWindow.requestAnimationFrame
+  globalThis.__sandboxCancelRAF = instrumentedWindow.cancelAnimationFrame
+  globalThis.__sandboxSetTimeout = instrumentedWindow.setTimeout
+  globalThis.__sandboxClearTimeout = instrumentedWindow.clearTimeout
+  globalThis.__sandboxSetInterval = instrumentedWindow.setInterval
+  globalThis.__sandboxClearInterval = instrumentedWindow.clearInterval
+  globalThis.__sandboxResizeObserver = instrumentedWindow.ResizeObserver
+
+  const cleanupGlobals = () => {
+    try {
+      delete globalThis.__sandboxRoot
+      delete globalThis.__sandboxWindow
+      delete globalThis.__sandboxDocument
+      delete globalThis.__sandboxRAF
+      delete globalThis.__sandboxCancelRAF
+      delete globalThis.__sandboxSetTimeout
+      delete globalThis.__sandboxClearTimeout
+      delete globalThis.__sandboxSetInterval
+      delete globalThis.__sandboxClearInterval
+      delete globalThis.__sandboxResizeObserver
+    } catch {}
+  }
+  if (Array.isArray(cleanupList)) cleanupList.push(cleanupGlobals)
+
+  const modulePreamble = `
+    const sandboxRoot = globalThis.__sandboxRoot;
+    const window = globalThis.__sandboxWindow;
+    const document = globalThis.__sandboxDocument;
+    const requestAnimationFrame = globalThis.__sandboxRAF;
+    const cancelAnimationFrame = globalThis.__sandboxCancelRAF;
+    const setTimeout = globalThis.__sandboxSetTimeout;
+    const clearTimeout = globalThis.__sandboxClearTimeout;
+    const setInterval = globalThis.__sandboxSetInterval;
+    const clearInterval = globalThis.__sandboxClearInterval;
+    const ResizeObserver = globalThis.__sandboxResizeObserver;
+  `
+
+  for (let i = 0; i < scriptsBucket.length; i += 1) {
+    const entry = scriptsBucket[i]
     if (ticket !== currentTicket) return
 
-    const preparedCode =
-      (entry.code ?? '').replace(/document\.currentScript\.getRootNode\(\)/g, 'sandboxRoot')
+    let preparedCode = (entry.code ?? '').replace(
+      /document\.currentScript\.getRootNode\(\)/g,
+      'sandboxRoot'
+    )
 
-    let runner = entry.runner
-    if (!runner) {
-      // Pass instrumented globals as function parameters to intercept bare calls
-      runner = new Function(
-        'sandboxRoot',
-        'window',
-        'document',
-        'requestAnimationFrame',
-        'cancelAnimationFrame',
-        'setTimeout',
-        'clearTimeout',
-        'setInterval',
-        'clearInterval',
-        'ResizeObserver',
-        '"use strict";\n' + preparedCode
-      )
-      entry.runner = runner
-    }
-
+    const moduleCode = `${modulePreamble}\n"use strict";\n${preparedCode}`
+    const blob = new Blob([moduleCode], { type: 'text/javascript' })
+    const url = URL.createObjectURL(blob)
     try {
-      dbg('script:run', { ticket: currentTicket, index: i, bytes: preparedCode.length })
-      runner.call(
-        target,
-        target,
-        instrumentedWindow,
-        instrumentedDocument,
-        instrumentedWindow.requestAnimationFrame,
-        instrumentedWindow.cancelAnimationFrame,
-        instrumentedWindow.setTimeout,
-        instrumentedWindow.clearTimeout,
-        instrumentedWindow.setInterval,
-        instrumentedWindow.clearInterval,
-        instrumentedWindow.ResizeObserver
-      )
+      dbg('script:import', { ticket: currentTicket, index: i, bytes: moduleCode.length })
+      // eslint-disable-next-line no-await-in-loop
+      await import(url)
     } catch (error) {
-      console.error('[sandbox] script execution failed:', error)
+      console.error('[sandbox] script compile failed:', error)
+    } finally {
+      try { URL.revokeObjectURL(url) } catch {}
     }
-  })
+  }
 
   dbg('inject:done', { ticket: currentTicket, scripts: scriptsBucket.length })
 

@@ -3,6 +3,7 @@ summary: High-voltage match-three arena with cascading combos, score multipliers
 agents:
   - GPT-5-Codex
   - Midjourney
+  - Claude Sonnet 4.5
 status: prototype
 tags:
   - game

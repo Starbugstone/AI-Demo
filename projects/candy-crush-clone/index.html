@@ -9,13 +9,11 @@
         color: #e2e8f0;
         letter-spacing: 0.01em;
       }
-
       body {
         margin: 0;
         padding: 0;
         background: transparent;
       }
-
       .wrapper {
         position: relative;
         display: grid;
@@ -28,7 +26,6 @@
         box-shadow: 0 1.8rem 3.6rem rgba(2, 6, 23, 0.7);
         overflow: hidden;
       }
-
       .wrapper::before {
         content: "";
         position: absolute;
@@ -40,7 +37,6 @@
         pointer-events: none;
         animation: pulse 14s ease-in-out infinite;
       }
-
       header {
         position: relative;
         z-index: 1;
@@ -50,27 +46,23 @@
         gap: 1.4rem;
         flex-wrap: wrap;
       }
-
       header h1 {
         margin: 0;
         font-size: clamp(1.8rem, 2.4vw, 2.4rem);
         letter-spacing: 0.22em;
         text-transform: uppercase;
       }
-
       header p {
         margin: 0;
         color: rgba(203, 213, 225, 0.86);
         max-width: 32rem;
         line-height: 1.6;
       }
-
       .hud {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         gap: 0.9rem;
       }
-
       .stat {
         position: relative;
         padding: 0.95rem 1.1rem;
@@ -80,7 +72,6 @@
         box-shadow: inset 0 0 0.75rem rgba(56, 189, 248, 0.16);
         overflow: hidden;
       }
-
       .stat strong {
         display: block;
         font-size: 0.8rem;
@@ -89,13 +80,11 @@
         color: rgba(226, 232, 240, 0.72);
         margin-bottom: 0.35rem;
       }
-
       .stat span {
         font-size: 1.7rem;
         font-weight: 600;
         color: #f472b6;
       }
-
       .stat .subtle {
         display: block;
         margin-top: 0.4rem;
@@ -103,7 +92,6 @@
         color: rgba(148, 163, 184, 0.88);
         letter-spacing: 0.08em;
       }
-
       .board-shell {
         position: relative;
         z-index: 1;
@@ -113,7 +101,6 @@
         border: 1px solid rgba(147, 197, 253, 0.22);
         box-shadow: inset 0 0 2.2rem rgba(15, 118, 110, 0.24);
       }
-
       .board {
         --cell-size: min(64px, min(12vw, 82px));
         display: grid;
@@ -122,7 +109,6 @@
         gap: 0.55rem;
         justify-content: center;
       }
-
       .candy {
         position: relative;
         width: var(--cell-size);
@@ -136,7 +122,6 @@
         box-shadow: inset 0 -0.2rem 0.45rem rgba(15, 23, 42, 0.26), 0 0.45rem 1.35rem rgba(2, 6, 23, 0.45);
         border: 2px solid rgba(15, 23, 42, 0.6);
       }
-
       .candy::after {
         content: "";
         position: absolute;
@@ -147,40 +132,51 @@
         filter: blur(3px);
         opacity: 0.75;
       }
-
       .candy.empty {
         background: rgba(15, 23, 42, 0.45);
         border-color: rgba(148, 163, 184, 0.25);
         box-shadow: inset 0 0 0.5rem rgba(30, 58, 138, 0.35);
         cursor: default;
       }
-
       .candy.selected {
         transform: scale(1.08) rotate(-2deg);
         filter: brightness(1.25);
         box-shadow: 0 0.65rem 1.65rem rgba(236, 72, 153, 0.55);
         border-color: rgba(248, 250, 252, 0.8);
       }
-
       .candy.invalid {
         animation: shake 320ms ease;
       }
-
       .candy.clearing {
         animation: vanish 280ms ease forwards;
       }
-
       .candy.spawn {
         animation: pop 320ms ease;
       }
-
+      .candy.upgrade {
+        animation: upgrade 380ms ease;
+      }
+      .candy.blast {
+        animation: blast 360ms ease;
+      }
+      .candy.bomb::after {
+        background: rgba(255, 255, 255, 0.85);
+        opacity: 0.9;
+      }
+      .candy.orb {
+        background: linear-gradient(135deg, #f0abfc, #60a5fa, #34d399);
+        box-shadow: 0 0.6rem 1.4rem rgba(99, 102, 241, 0.55), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35);
+      }
+      .candy.orb::after {
+        background: rgba(255, 255, 255, 0.95);
+        opacity: 0.95;
+      }
       .candy .glyph {
         position: relative;
         z-index: 1;
         filter: drop-shadow(0 0 0.3rem rgba(15, 23, 42, 0.35));
         transform: translateY(-3%);
       }
-
       .feed {
         position: relative;
         z-index: 1;
@@ -189,7 +185,6 @@
         background: linear-gradient(165deg, rgba(8, 47, 73, 0.65), rgba(147, 51, 234, 0.25));
         border: 1px solid rgba(129, 140, 248, 0.32);
       }
-
       .feed h2 {
         margin: 0 0 0.6rem;
         font-size: 0.95rem;
@@ -197,7 +192,6 @@
         letter-spacing: 0.18em;
         color: rgba(226, 232, 240, 0.8);
       }
-
       .feed ul {
         margin: 0;
         padding: 0;
@@ -205,7 +199,6 @@
         display: grid;
         gap: 0.5rem;
       }
-
       .feed li {
         font-size: 0.86rem;
         color: rgba(191, 219, 254, 0.86);
@@ -218,12 +211,10 @@
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: inset 0 0 0.65rem rgba(59, 130, 246, 0.18);
       }
-
       .feed li span {
         font-weight: 600;
         color: #f9a8d4;
       }
-
       footer {
         position: relative;
         z-index: 1;
@@ -234,14 +225,12 @@
         gap: 1.1rem;
         flex-wrap: wrap;
       }
-
       footer strong {
         color: #fbcfe8;
         letter-spacing: 0.16em;
         text-transform: uppercase;
         font-size: 0.78rem;
       }
-
       @keyframes pulse {
         0%,
         100% {
@@ -253,7 +242,6 @@
           opacity: 0.85;
         }
       }
-
       @keyframes shake {
         0%,
         100% {
@@ -272,7 +260,6 @@
           transform: translateX(5%);
         }
       }
-
       @keyframes vanish {
         0% {
           transform: scale(1) rotate(0deg);
@@ -283,7 +270,6 @@
           opacity: 0;
         }
       }
-
       @keyframes pop {
         0% {
           transform: scale(0.2);
@@ -295,18 +281,44 @@
           transform: scale(1);
         }
       }
-
+      @keyframes upgrade {
+        0% {
+          box-shadow: 0 0 0 rgba(250, 204, 21, 0);
+          transform: scale(1);
+        }
+        50% {
+          box-shadow: 0 0 1.2rem rgba(250, 204, 21, 0.9);
+          transform: scale(1.12);
+        }
+        100% {
+          box-shadow: 0 0 0.6rem rgba(250, 204, 21, 0.5);
+          transform: scale(1);
+        }
+      }
+      @keyframes blast {
+        0% {
+          transform: scale(1);
+          filter: brightness(1);
+          opacity: 1;
+        }
+        40% {
+          transform: scale(1.15);
+          filter: brightness(1.4);
+        }
+        100% {
+          transform: scale(0);
+          opacity: 0;
+        }
+      }
       @media (max-width: 640px) {
         .wrapper {
           padding: 1.2rem;
           border-radius: 1.2rem;
         }
-
         header {
           flex-direction: column;
           align-items: flex-start;
         }
-
         header h1 {
           letter-spacing: 0.18em;
         }
@@ -346,16 +358,13 @@
           </div>
         </div>
       </header>
-
       <div class="board-shell">
         <div class="board" id="candy-board" role="grid" aria-label="Candy grid"></div>
       </div>
-
       <div class="feed">
         <h2>Combo Feed</h2>
         <ul id="combo-feed" aria-live="polite"></ul>
       </div>
-
       <footer>
         <div>
           <strong>How to play</strong>
@@ -367,21 +376,19 @@
         </div>
       </footer>
     </div>
-
     <script>
       (() => {
         const root = document.currentScript.getRootNode();
         const hostDocument = root.host?.ownerDocument || root;
-
         const boardEl = root.getElementById('candy-board');
         const scoreEl = root.getElementById('score');
         const movesEl = root.getElementById('moves');
         const cascadeEl = root.getElementById('cascade');
         const longestEl = root.getElementById('longest');
         const feedEl = root.getElementById('combo-feed');
-
         const boardSize = 8;
         const totalCells = boardSize * boardSize;
+        
         const candyPalette = [
           {
             id: 'ember',
@@ -420,9 +427,9 @@
             glyph: '🌌',
           },
         ];
-
+        
         const paletteById = Object.fromEntries(candyPalette.map((candy) => [candy.id, candy]));
-
+        
         const state = {
           board: [],
           score: 0,
@@ -431,20 +438,21 @@
           longestCascade: 0,
           selected: null,
           busy: false,
+          lastSwap: null,
         };
-
+        
         const randomCandyId = () => {
           const index = Math.floor(Math.random() * candyPalette.length);
           return candyPalette[index].id;
         };
-
+        
         const indexToPoint = (index) => ({
           row: Math.floor(index / boardSize),
           col: index % boardSize,
         });
-
+        
         const pointToIndex = (row, col) => row * boardSize + col;
-
+        
         const isAdjacent = (indexA, indexB) => {
           const { row: rowA, col: colA } = indexToPoint(indexA);
           const { row: rowB, col: colB } = indexToPoint(indexB);
@@ -452,9 +460,8 @@
           const colDelta = Math.abs(colA - colB);
           return (rowDelta === 1 && colDelta === 0) || (rowDelta === 0 && colDelta === 1);
         };
-
+        
         const wouldCreateMatch = (row, col, candidateId) => {
-          // Check horizontal
           let streak = 1;
           for (let offset = 1; offset <= 2; offset += 1) {
             const neighborCol = col - offset;
@@ -464,7 +471,7 @@
             else break;
           }
           if (streak >= 3) return true;
-
+          
           streak = 1;
           for (let offset = 1; offset <= 2; offset += 1) {
             const neighborRow = row - offset;
@@ -475,12 +482,13 @@
           }
           return streak >= 3;
         };
-
+        
         const applyCandyStyle = (cell, candyId, options = {}) => {
           const { animate = false } = options;
           const { element } = cell;
-          element.classList.remove('selected', 'invalid', 'clearing', 'spawn');
-
+          element.classList.remove('selected', 'invalid', 'clearing', 'spawn', 'upgrade', 'blast', 'bomb');
+          cell.special = null;
+          
           if (!candyId) {
             cell.type = null;
             element.classList.add('empty');
@@ -490,7 +498,7 @@
             element.innerHTML = '';
             return;
           }
-
+          
           const candy = paletteById[candyId];
           cell.type = candyId;
           element.classList.remove('empty');
@@ -498,7 +506,7 @@
           element.style.background = `linear-gradient(135deg, ${candy.colors[0]}, ${candy.colors[1]})`;
           element.style.boxShadow = `inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.25), 0 0.45rem 1.15rem ${candy.glow}`;
           element.innerHTML = `<span class="glyph">${candy.glyph}</span>`;
-
+          
           if (animate) {
             element.classList.add('spawn');
             requestAnimationFrame(() => {
@@ -508,11 +516,35 @@
             });
           }
         };
-
+        
+        const applySpecialStyle = (cell, special, baseType) => {
+          const { element } = cell;
+          const candy = paletteById[baseType || cell.type];
+          cell.type = baseType || cell.type;
+          cell.special = special;
+          element.classList.remove('empty');
+          element.dataset.candy = cell.type;
+          
+          if (special === 'bomb') {
+            element.classList.add('bomb');
+            element.style.background = `linear-gradient(135deg, ${candy.colors[1]}, ${candy.colors[0]})`;
+            element.style.boxShadow = `0 0.6rem 1.4rem ${candy.glow}, inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35)`;
+            element.innerHTML = `<span class="glyph">💣</span>`;
+            element.classList.add('upgrade');
+          } else if (special === 'orb') {
+            element.classList.add('orb');
+            element.style.background = `linear-gradient(135deg, #f0abfc, #60a5fa, #34d399)`;
+            element.style.boxShadow = `0 0.7rem 1.6rem rgba(244, 114, 182, 0.55), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35)`;
+            element.innerHTML = `<span class="glyph">🌈</span>`;
+            element.classList.add('upgrade');
+          }
+        };
+        
         const createCell = (index) => {
           const cell = {
             index,
             type: null,
+            special: null,
             element: hostDocument.createElement('button'),
           };
           const { row, col } = indexToPoint(index);
@@ -525,14 +557,14 @@
           state.board.push(cell);
           return cell;
         };
-
+        
         const updateHud = () => {
           scoreEl.textContent = state.score.toLocaleString();
           movesEl.textContent = state.moves;
           cascadeEl.textContent = `${state.activeCascade}×`;
           longestEl.textContent = `${state.longestCascade}×`;
         };
-
+        
         const logCombo = (matchedCount, cascadeLevel) => {
           if (!feedEl) return;
           const entry = hostDocument.createElement('li');
@@ -542,15 +574,13 @@
             feedEl.lastElementChild?.remove();
           }
         };
-
-        const delay = (ms) =>
-          new Promise((resolve) => {
-            setTimeout(resolve, ms);
-          });
-
+        
+        const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        
         const findMatches = () => {
           const matched = new Set();
-
+          const runs = [];
+          
           // Horizontal matches
           for (let row = 0; row < boardSize; row += 1) {
             let runStart = 0;
@@ -558,18 +588,23 @@
               const prevIndex = pointToIndex(row, col - 1);
               const prevType = state.board[prevIndex].type;
               const currentType = col < boardSize ? state.board[pointToIndex(row, col)].type : null;
+              
               if (!prevType || prevType !== currentType) {
                 const runLength = col - runStart;
                 if (prevType && runLength >= 3) {
+                  const indices = [];
                   for (let offset = 0; offset < runLength; offset += 1) {
-                    matched.add(pointToIndex(row, runStart + offset));
+                    const idx = pointToIndex(row, runStart + offset);
+                    matched.add(idx);
+                    indices.push(idx);
                   }
+                  runs.push({ direction: 'h', type: prevType, indices });
                 }
                 runStart = col;
               }
             }
           }
-
+          
           // Vertical matches
           for (let col = 0; col < boardSize; col += 1) {
             let runStart = 0;
@@ -577,41 +612,47 @@
               const prevIndex = pointToIndex(row - 1, col);
               const prevType = state.board[prevIndex].type;
               const currentType = row < boardSize ? state.board[pointToIndex(row, col)].type : null;
+              
               if (!prevType || prevType !== currentType) {
                 const runLength = row - runStart;
                 if (prevType && runLength >= 3) {
+                  const indices = [];
                   for (let offset = 0; offset < runLength; offset += 1) {
-                    matched.add(pointToIndex(runStart + offset, col));
+                    const idx = pointToIndex(runStart + offset, col);
+                    matched.add(idx);
+                    indices.push(idx);
                   }
+                  runs.push({ direction: 'v', type: prevType, indices });
                 }
                 runStart = row;
               }
             }
           }
-
-          return matched;
+          
+          return { matched, runs };
         };
-
+        
         const collapseColumns = () => {
           for (let col = 0; col < boardSize; col += 1) {
             const survivors = [];
             for (let row = 0; row < boardSize; row += 1) {
               const cell = state.board[pointToIndex(row, col)];
               if (cell.type) {
-                survivors.push(cell.type);
+                survivors.push({ type: cell.type, special: cell.special });
               }
             }
             for (let row = boardSize - 1; row >= 0; row -= 1) {
               const index = pointToIndex(row, col);
               const cell = state.board[index];
-              const nextType = survivors.pop() ?? null;
-              if (nextType !== cell.type) {
-                applyCandyStyle(cell, nextType);
+              const next = survivors.pop() ?? { type: null, special: null };
+              if (next.type !== cell.type || next.special !== cell.special) {
+                if (next.special) applySpecialStyle(cell, next.special, next.type);
+                else applyCandyStyle(cell, next.type);
               }
             }
           }
         };
-
+        
         const refillBoard = () => {
           for (let index = 0; index < totalCells; index += 1) {
             const cell = state.board[index];
@@ -626,55 +667,97 @@
             applyCandyStyle(cell, candidate, { animate: true });
           }
         };
-
+        
         const resolveBoard = async (cascadeLevel) => {
-          const matches = findMatches();
-          if (!matches.size) {
+          const { matched: baseMatched, runs } = findMatches();
+          if (!baseMatched.size) {
             if (cascadeLevel === 1) {
               state.activeCascade = 0;
               updateHud();
             }
             return false;
           }
-
+          
+          const expanded = new Set(baseMatched);
+          baseMatched.forEach((index) => {
+            const cell = state.board[index];
+            if (cell.special === 'bomb') {
+              const { row, col } = indexToPoint(index);
+              for (let dr = -1; dr <= 1; dr += 1) {
+                for (let dc = -1; dc <= 1; dc += 1) {
+                  const rr = row + dr;
+                  const cc = col + dc;
+                  if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                  expanded.add(pointToIndex(rr, cc));
+                }
+              }
+            }
+          });
+          
+          const blasted = new Set(Array.from(expanded).filter((i) => !baseMatched.has(i)));
+          
+          const bombPlacements = [];
+          const lastA = state.lastSwap?.a;
+          const lastB = state.lastSwap?.b;
+          runs.forEach((run) => {
+            if (run.indices.length >= 4) {
+              let pivot = run.indices.find((i) => i === lastB || i === lastA);
+              if (pivot == null) {
+                pivot = run.indices[Math.floor(run.indices.length / 2)];
+              }
+              bombPlacements.push({
+                index: pivot,
+                type: run.type,
+                special: run.indices.length >= 5 ? 'orb' : 'bomb',
+              });
+            }
+          });
+          
           state.activeCascade = cascadeLevel;
           state.longestCascade = Math.max(state.longestCascade, cascadeLevel);
           updateHud();
-
-          matches.forEach((index) => {
+          
+          expanded.forEach((index) => {
             const cell = state.board[index];
             cell.element.classList.add('clearing');
+            if (blasted.has(index)) cell.element.classList.add('blast');
           });
-
-          state.score += matches.size * 45 * cascadeLevel;
+          
+          state.score += expanded.size * 45 * cascadeLevel;
           updateHud();
-          logCombo(matches.size, cascadeLevel);
-
+          logCombo(expanded.size, cascadeLevel);
+          playSfx(baseMatched.size !== expanded.size ? 'bomb' : 'match');
           await delay(240);
-
-          matches.forEach((index) => {
+          
+          const bombIndexSet = new Set(bombPlacements.map((b) => b.index));
+          expanded.forEach((index) => {
             const cell = state.board[index];
-            applyCandyStyle(cell, null);
+            if (bombIndexSet.has(index)) {
+              const bp = bombPlacements.find((b) => b.index === index);
+              applySpecialStyle(cell, bp?.special || 'bomb', bp?.type || cell.type);
+            } else {
+              applyCandyStyle(cell, null);
+            }
             cell.element.classList.remove('clearing');
+            cell.element.classList.remove('blast');
           });
-
+          
           await delay(80);
           collapseColumns();
           await delay(140);
           refillBoard();
           await delay(160);
-
           await resolveBoard(cascadeLevel + 1);
           return true;
         };
-
+        
         const deselect = () => {
           if (state.selected) {
             state.selected.element.classList.remove('selected');
             state.selected = null;
           }
         };
-
+        
         const flashInvalid = (first, second) => {
           first.element.classList.add('invalid');
           second.element.classList.add('invalid');
@@ -683,61 +766,197 @@
             second.element.classList.remove('invalid');
           }, 320);
         };
-
-        const swapCandies = (cellA, cellB) => {
-          const tempType = cellA.type;
-          applyCandyStyle(cellA, cellB.type);
-          applyCandyStyle(cellB, tempType);
+        
+        const audio = { ctx: null };
+        
+        const initAudio = () => {
+          if (audio.ctx) return;
+          try {
+            audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          } catch {}
         };
-
+        
+        const playTone = (freq = 440, duration = 0.08, type = 'sine', gain = 0.05) => {
+          if (!audio.ctx) return;
+          const ctx = audio.ctx;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = type;
+          osc.frequency.value = freq;
+          g.gain.value = gain;
+          osc.connect(g);
+          g.connect(ctx.destination);
+          const now = ctx.currentTime;
+          g.gain.setValueAtTime(gain, now);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+          osc.start(now);
+          osc.stop(now + duration + 0.02);
+        };
+        
+        const playSfx = (kind) => {
+          initAudio();
+          switch (kind) {
+            case 'swap':
+              playTone(520, 0.05, 'triangle', 0.04);
+              break;
+            case 'invalid':
+              playTone(200, 0.09, 'sawtooth', 0.05);
+              break;
+            case 'match':
+              playTone(700, 0.06, 'sine', 0.05);
+              setTimeout(() => playTone(880, 0.06, 'sine', 0.04), 60);
+              break;
+            case 'bomb':
+              playTone(220, 0.12, 'square', 0.06);
+              setTimeout(() => playTone(160, 0.12, 'sine', 0.05), 90);
+              break;
+          }
+        };
+        
+        const swapCandies = (cellA, cellB) => {
+          const temp = { type: cellA.type, special: cellA.special };
+          if (cellB.special) applySpecialStyle(cellA, cellB.special, cellB.type);
+          else applyCandyStyle(cellA, cellB.type);
+          if (temp.special) applySpecialStyle(cellB, temp.special, temp.type);
+          else applyCandyStyle(cellB, temp.type);
+        };
+        
         const attemptSwap = async (origin, target) => {
           if (state.busy) return false;
           state.busy = true;
+          state.lastSwap = { a: origin.index, b: target.index };
+          playSfx('swap');
+          
+          const wasBombA = origin.special === 'bomb';
+          const wasBombB = target.special === 'bomb';
+          const wasOrbA = origin.special === 'orb';
+          const wasOrbB = target.special === 'orb';
+          const otherTypeForOrb = wasOrbA ? target.type : wasOrbB ? origin.type : null;
+          
           swapCandies(origin, target);
+          
+          const bombAfterIndex = wasBombA ? target.index : wasBombB ? origin.index : null;
+          const orbAfterIndex = wasOrbA ? target.index : wasOrbB ? origin.index : null;
+          
+          const detonateBombAt = async (centerIndex) => {
+            if (centerIndex == null) return;
+            const affected = new Set();
+            const { row, col } = indexToPoint(centerIndex);
+            for (let dr = -1; dr <= 1; dr += 1) {
+              for (let dc = -1; dc <= 1; dc += 1) {
+                const rr = row + dr;
+                const cc = col + dc;
+                if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                affected.add(pointToIndex(rr, cc));
+              }
+            }
+            affected.forEach((i) => {
+              const c = state.board[i];
+              c.element.classList.add('clearing', 'blast');
+            });
+            playSfx('bomb');
+            await delay(240);
+            affected.forEach((i) => {
+              const c = state.board[i];
+              applyCandyStyle(c, null);
+              c.element.classList.remove('clearing', 'blast');
+            });
+            await delay(80);
+            collapseColumns();
+            await delay(140);
+            refillBoard();
+            await delay(160);
+            await resolveBoard(1);
+          };
+          
+          const detonateOrb = async (orbIndex, targetType) => {
+            if (orbIndex == null || !targetType) return;
+            const affected = new Set();
+            for (let i = 0; i < totalCells; i += 1) {
+              if (state.board[i].type === targetType) affected.add(i);
+            }
+            affected.add(orbIndex);
+            affected.forEach((i) => {
+              const c = state.board[i];
+              c.element.classList.add('clearing', 'blast');
+            });
+            playSfx('bomb');
+            await delay(260);
+            affected.forEach((i) => {
+              const c = state.board[i];
+              applyCandyStyle(c, null);
+              c.element.classList.remove('clearing', 'blast');
+            });
+            await delay(80);
+            collapseColumns();
+            await delay(140);
+            refillBoard();
+            await delay(160);
+            await resolveBoard(1);
+          };
+          
+          if (wasBombA || wasBombB) {
+            await detonateBombAt(bombAfterIndex);
+            state.moves += 1;
+            updateHud();
+            state.busy = false;
+            return true;
+          }
+          
+          if (wasOrbA || wasOrbB) {
+            await detonateOrb(orbAfterIndex, otherTypeForOrb);
+            state.moves += 1;
+            updateHud();
+            state.busy = false;
+            return true;
+          }
+          
           const hadMatches = await resolveBoard(1);
           if (!hadMatches) {
             swapCandies(origin, target);
             flashInvalid(origin, target);
+            playSfx('invalid');
             state.busy = false;
             return false;
           }
-
+          
           state.moves += 1;
           updateHud();
           state.busy = false;
           return true;
         };
-
+        
         const handleCellSelection = async (event) => {
           event.preventDefault();
           if (state.busy) return;
           const target = event.currentTarget;
           const index = Number(target.dataset.index);
           const cell = state.board[index];
+          
           if (!state.selected) {
             state.selected = cell;
             cell.element.classList.add('selected');
             return;
           }
-
+          
           if (cell === state.selected) {
             deselect();
             return;
           }
-
+          
           if (!isAdjacent(cell.index, state.selected.index)) {
             state.selected.element.classList.remove('selected');
             state.selected = cell;
             cell.element.classList.add('selected');
             return;
           }
-
+          
           const origin = state.selected;
           origin.element.classList.remove('selected');
           deselect();
           await attemptSwap(origin, cell);
-          };
-
+        };
+        
         const bootstrapBoard = () => {
           for (let index = 0; index < totalCells; index += 1) {
             const cell = createCell(index);
@@ -755,27 +974,33 @@
                 handleCellSelection(event);
               }
             });
-
-            // Enable drag-and-drop swapping
+            
             cell.element.draggable = true;
             cell.element.addEventListener('dragstart', (event) => {
               try {
                 event.dataTransfer?.setData('text/plain', String(index));
-                event.dataTransfer?.setDragImage(cell.element, Math.floor(cell.element.offsetWidth/2), Math.floor(cell.element.offsetHeight/2));
+                event.dataTransfer?.setDragImage(
+                  cell.element,
+                  Math.floor(cell.element.offsetWidth / 2),
+                  Math.floor(cell.element.offsetHeight / 2)
+                );
               } catch {}
               cell.element.classList.add('selected');
+              try {
+                playSfx('swap');
+              } catch {}
             });
+            
             cell.element.addEventListener('dragover', (event) => {
-              // Necessary to allow drop
               event.preventDefault();
             });
+            
             cell.element.addEventListener('drop', async (event) => {
               event.preventDefault();
               const srcIndex = Number(event.dataTransfer?.getData('text/plain'));
               const dstIndex = Number(cell.element.dataset.index);
               const origin = state.board[srcIndex];
               const targetCell = state.board[dstIndex];
-              // Clean selected style from dragstart origin if still present
               origin?.element?.classList?.remove('selected');
               if (!origin || !targetCell || origin === targetCell) return;
               if (!isAdjacent(origin.index, targetCell.index)) {
@@ -784,17 +1009,17 @@
               }
               await attemptSwap(origin, targetCell);
             });
+            
             cell.element.addEventListener('dragend', () => {
               cell.element.classList.remove('selected');
             });
           }
-
-          // Resolve any incidental matches created by randomness
+          
           resolveBoard(1).then(() => {
             state.busy = false;
           });
         };
-
+        
         state.busy = true;
         bootstrapBoard();
         updateHud();
