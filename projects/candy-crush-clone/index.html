@@ -537,15 +537,15 @@
         const applySpecialStyle = (cell, special, baseType) => {
           const { element } = cell;
           const candy = paletteById[baseType || cell.type];
-          cell.type = baseType || cell.type;
+          cell.type = null;
           cell.special = special;
           element.classList.remove('empty');
-          element.dataset.candy = cell.type;
+          element.dataset.candy = '';
           
           if (special === 'bomb') {
             element.classList.add('bomb');
-            element.style.background = `linear-gradient(135deg, ${candy.colors[1]}, ${candy.colors[0]})`;
-            element.style.boxShadow = `0 0.6rem 1.4rem ${candy.glow}, inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35)`;
+            element.style.background = `linear-gradient(135deg, #fb7185, #ef4444)`;
+            element.style.boxShadow = `0 0.6rem 1.4rem rgba(239,68,68,0.55), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35)`;
             element.innerHTML = `<span class="glyph">💣</span>`;
             element.classList.add('upgrade');
           } else if (special === 'orb') {
@@ -556,7 +556,7 @@
             element.classList.add('upgrade');
           } else if (special === 'cross') {
             element.classList.add('cross');
-            element.style.background = 'linear-gradient(135deg, ' + candy.colors[0] + ', ' + candy.colors[1] + ')';
+            element.style.background = 'linear-gradient(135deg, #fde047, #f59e0b)';
             element.style.boxShadow = '0 0.7rem 1.6rem rgba(250, 204, 21, 0.55), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35)';
             element.innerHTML = '<span class="glyph">✚</span>';
             element.classList.add('upgrade');
@@ -660,7 +660,7 @@
             const survivors = [];
             for (let row = 0; row < boardSize; row += 1) {
               const cell = state.board[pointToIndex(row, col)];
-              if (cell.type) {
+              if (cell.type || cell.special) {
                 survivors.push({ type: cell.type, special: cell.special });
               }
             }
@@ -679,7 +679,7 @@
         const refillBoard = () => {
           for (let index = 0; index < totalCells; index += 1) {
             const cell = state.board[index];
-            if (cell.type) continue;
+            if (cell.type || cell.special) continue;
             const { row, col } = indexToPoint(index);
             let candidate = randomCandyId();
             let safety = 0;
@@ -1214,6 +1214,12 @@
               sweepTone(1600, 600, 0.13, 'square', 0.04 + boost, pan);
               setTimeout(() => playTone(1200, 0.06, 'triangle', 0.03 + boost * 0.5, -pan), 40);
               break;
+            case 'orb-bonus':
+              // rainbow mega combo: whoosh + sparkle + thump
+              sweepTone(2000, 500, 0.22, 'sawtooth', 0.05 + boost, pan);
+              setTimeout(() => playNoise(0.18, 0.06 + boost, 'lowpass'), 40);
+              setTimeout(() => playTone(960, 0.08, 'sine', 0.06 + boost, -pan * 0.5), 120);
+              break;
             case 'upgrade':
               playTone(900, 0.06, 'sine', 0.05 + boost, 0);
               setTimeout(() => playTone(1200, 0.06, 'triangle', 0.05 + boost, 0), 70);
@@ -1253,7 +1259,65 @@
           const crossAfterIndex = wasCrossA ? target.index : wasCrossB ? origin.index : null;
           const bombAfterIndex = wasBombA ? target.index : wasBombB ? origin.index : null;
           const orbAfterIndex = wasOrbA ? target.index : wasOrbB ? origin.index : null;
-          
+
+          // Rainbow + Bonus (bomb or cross): apply bonus to 10 random tiles
+          const detonateOrbCombo = async (orbIdx, kind, otherIdx) => {
+            if (orbIdx == null) return;
+            try { kickShake(10, 300); } catch {}
+            const candidates = [];
+            for (let i = 0; i < totalCells; i += 1) {
+              if (state.board[i].type) candidates.push(i); // only normal candies
+            }
+            candidates.sort(() => Math.random() - 0.5);
+            const targets = candidates.slice(0, Math.min(10, candidates.length));
+            const affected = new Set();
+            if (otherIdx != null) affected.add(otherIdx);
+            affected.add(orbIdx);
+            let sx = 0, sy = 0;
+            try { const c = cellCenter(orbIdx); sx = c.x; sy = c.y; } catch {}
+            targets.forEach((ti, idx) => {
+              try { const { x: tx, y: ty } = cellCenter(ti); setTimeout(() => addBeam(sx, sy, tx, ty, { baseWidth: 10, duration: 280 }), idx * 40); } catch {}
+            });
+            if (kind === 'bomb') {
+              for (const ti of targets) {
+                const { row, col } = indexToPoint(ti);
+                for (let dr = -1; dr <= 1; dr += 1) {
+                  for (let dc = -1; dc <= 1; dc += 1) {
+                    const rr = row + dr;
+                    const cc = col + dc;
+                    if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                    affected.add(pointToIndex(rr, cc));
+                  }
+                }
+              }
+            } else if (kind === 'cross') {
+              for (const ti of targets) {
+                const { row, col } = indexToPoint(ti);
+                for (let c = 0; c < boardSize; c += 1) affected.add(pointToIndex(row, c));
+                for (let r = 0; r < boardSize; r += 1) affected.add(pointToIndex(r, col));
+              }
+            }
+            affected.forEach((i) => {
+              const c = state.board[i];
+              c.element.classList.add('clearing', 'blast');
+              try { const { x, y } = cellCenter(i); burstParticles(x, y, { count: 18, speed: 280, life: 0.5 }); } catch {}
+            });
+            try { addRing(sx, sy, { r0: 12, r1: 150, width: 9, color: 'rgba(244,114,182,0.95)', duration: 300 }); } catch {}
+            playSfx('orb-bonus', { cascadeLevel: state.activeCascade || 1, power: affected.size });
+            await delay(300);
+            affected.forEach((i) => {
+              const c = state.board[i];
+              applyCandyStyle(c, null);
+              c.element.classList.remove('clearing', 'blast');
+            });
+            await delay(80);
+            collapseColumns();
+            await delay(140);
+            refillBoard();
+            await delay(160);
+            await resolveBoard(1);
+          };
+
                               const detonateBombAt = async (centerIndex) => {
             if (centerIndex == null) return;
             const affected = new Set();
@@ -1429,7 +1493,27 @@
             refillBoard();
             await delay(160);
             await resolveBoard(1);
-          };if (wasBombA || wasBombB) {
+          };
+
+          // Prefer orb+bonus combos before individual bonus activations
+          const combinedWithBomb = (wasOrbA && wasBombB) || (wasOrbB && wasBombA);
+          const combinedWithCross = (wasOrbA && wasCrossB) || (wasOrbB && wasCrossA);
+          if (combinedWithBomb) {
+            await detonateOrbCombo(orbAfterIndex, 'bomb', bombAfterIndex);
+            state.moves += 1;
+            updateHud();
+            state.busy = false;
+            return true;
+          }
+          if (combinedWithCross) {
+            await detonateOrbCombo(orbAfterIndex, 'cross', crossAfterIndex);
+            state.moves += 1;
+            updateHud();
+            state.busy = false;
+            return true;
+          }
+
+          if (wasBombA || wasBombB) {
             await detonateBombAt(bombAfterIndex);
             state.moves += 1;
             updateHud();
