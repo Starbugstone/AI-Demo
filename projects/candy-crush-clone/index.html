@@ -1050,9 +1050,28 @@
           osc.frequency.value = freq;
           g.gain.value = gain;
           const dest = audio.bus ?? ctx.destination;
-          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(dest); }
-          else { osc.connect(g); g.connect(dest); }
+          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); }
+          else { osc.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); }
           const now = ctx.currentTime;
+          g.gain.setValueAtTime(gain, now);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+          osc.start(now);
+          osc.stop(now + duration + 0.02);
+        };
+        const sweepTone = (f0 = 800, f1 = 300, duration = 0.12, type = 'square', gain = 0.05, pan = 0) => {
+          if (!audio.ctx) return;
+          const ctx = audio.ctx;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+          osc.type = type;
+          g.gain.value = gain;
+          const dest = audio.bus ?? ctx.destination;
+          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); }
+          else { osc.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); }
+          const now = ctx.currentTime;
+          osc.frequency.setValueAtTime(f0, now);
+          osc.frequency.linearRampToValueAtTime(f1, now + duration * 0.85);
           g.gain.setValueAtTime(gain, now);
           g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
           osc.start(now);
@@ -1073,7 +1092,7 @@
           filt.type = type;
           filt.frequency.value = 800;
           const dest = audio.bus ?? ctx.destination;
-          src.connect(filt); filt.connect(g); g.connect(dest);
+          src.connect(filt); filt.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend);
           const now = ctx.currentTime;
           g.gain.setValueAtTime(gain, now);
           g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -1104,8 +1123,7 @@
               setTimeout(() => playTone(90 + power * 40, 0.18, 'sine', 0.08 + boost * 0.6, pan * 0.3), 20);
               break;
             case 'laser':
-              playTone(1400, 0.05, 'square', 0.035 + boost, pan);
-              setTimeout(() => playTone(900, 0.08, 'triangle', 0.03 + boost, -pan), 40);
+              sweepTone(1600, 600, 0.13, 'square', 0.04 + boost, pan);
               break;
           }
         };
@@ -1250,6 +1268,36 @@
             const { row, col } = indexToPoint(centerIndex);
             for (let c = 0; c < boardSize; c += 1) affected.add(pointToIndex(row, c));
             for (let r = 0; r < boardSize; r += 1) affected.add(pointToIndex(r, col));
+            // If the cross beam hits bombs, chain-explode them (expand affected accordingly)
+            (function expandFromBombsInLine() {
+              const visited = new Set();
+              const queue = [];
+              affected.forEach((idx) => {
+                const cell = state.board[idx];
+                if (cell?.special === 'bomb' && !visited.has(idx)) {
+                  visited.add(idx);
+                  queue.push(idx);
+                }
+              });
+              while (queue.length) {
+                const bIdx = queue.shift();
+                const { row: br, col: bc } = indexToPoint(bIdx);
+                for (let dr = -1; dr <= 1; dr += 1) {
+                  for (let dc = -1; dc <= 1; dc += 1) {
+                    const rr = br + dr;
+                    const cc = bc + dc;
+                    if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                    const nIdx = pointToIndex(rr, cc);
+                    if (!affected.has(nIdx)) affected.add(nIdx);
+                    const nCell = state.board[nIdx];
+                    if (nCell?.special === 'bomb' && !visited.has(nIdx)) {
+                      visited.add(nIdx);
+                      queue.push(nIdx);
+                    }
+                  }
+                }
+              }
+            })();
             affected.forEach((i) => {
               const c = state.board[i];
               c.element.classList.add('clearing', 'blast');
