@@ -157,6 +157,18 @@
       .candy.invalid {
         animation: shake 320ms ease;
       }
+      /* Idle hint state */
+      .candy.hint {
+        outline: 3px solid rgba(250, 204, 21, 0.75);
+        outline-offset: 3px;
+        filter: brightness(1.2) saturate(1.1);
+        animation: hintGlow 1000ms ease-in-out infinite;
+      }
+      @keyframes hintGlow {
+        0% { transform: scale(1); box-shadow: 0 0.45rem 1.15rem rgba(250, 204, 21, 0.35); }
+        50% { transform: scale(1.06); box-shadow: 0 0.8rem 1.6rem rgba(250, 204, 21, 0.55); }
+        100% { transform: scale(1); box-shadow: 0 0.45rem 1.15rem rgba(250, 204, 21, 0.35); }
+      }
       .candy.clearing {
         animation: vanish 280ms ease forwards;
       }
@@ -545,7 +557,7 @@
         const applyCandyStyle = (cell, candyId, options = {}) => {
           const { animate = false } = options;
           const { element } = cell;
-          element.classList.remove('selected', 'invalid', 'clearing', 'spawn', 'upgrade', 'blast', 'bomb');
+          element.classList.remove('selected', 'invalid', 'clearing', 'spawn', 'upgrade', 'blast', 'bomb', 'hint');
           cell.special = null;
           
           if (!candyId) {
@@ -581,7 +593,7 @@
           const candy = paletteById[baseType || cell.type];
           cell.type = null;
           cell.special = special;
-          element.classList.remove('empty');
+          element.classList.remove('empty', 'hint');
           element.dataset.candy = '';
           
           if (special === 'bomb') {
@@ -1668,11 +1680,13 @@
           state.moves += 1;
           updateHud();
           state.busy = false;
+          try { resetHintTimer(); } catch {}
           return true;
         };
         
         const handleCellSelection = async (event) => {
           event.preventDefault();
+          try { onPlayerActivity(); } catch {}
           if (state.busy) return;
           const target = event.currentTarget;
           const index = Number(target.dataset.index);
@@ -1720,6 +1734,7 @@
             cell.element.addEventListener('click', handleCellSelection);
             cell.element.addEventListener('keydown', (event) => {
               if (event.key === 'Enter' || event.key === ' ') {
+                try { onPlayerActivity(); } catch {}
                 handleCellSelection(event);
               }
             });
@@ -1738,6 +1753,7 @@
               try {
                 playSfx('swap');
               } catch {}
+              try { onPlayerActivity(); } catch {}
             });
             
             cell.element.addEventListener('dragover', (event) => {
@@ -1746,6 +1762,7 @@
             
             cell.element.addEventListener('drop', async (event) => {
               event.preventDefault();
+              try { onPlayerActivity(); } catch {}
               const srcIndex = Number(event.dataTransfer?.getData('text/plain'));
               const dstIndex = Number(cell.element.dataset.index);
               const origin = state.board[srcIndex];
@@ -1766,9 +1783,120 @@
           
           resolveBoard(1).then(() => {
             state.busy = false;
+            try { scheduleHint(); } catch {}
           });
         };
         
+        // Idle hint: after 20s inactivity, highlight a legal move
+        let hintTimer = null;
+        const hintDelayMs = 20000;
+        let hintPair = null; // [indexA, indexB]
+
+        const clearHint = () => {
+          if (hintPair) {
+            const [a, b] = hintPair;
+            state.board[a]?.element?.classList?.remove('hint');
+            state.board[b]?.element?.classList?.remove('hint');
+            hintPair = null;
+          }
+        };
+
+        const showHint = (a, b) => {
+          clearHint();
+          hintPair = [a, b];
+          state.board[a]?.element?.classList?.add('hint');
+          state.board[b]?.element?.classList?.add('hint');
+        };
+
+        const scheduleHint = () => {
+          if (hintTimer) clearTimeout(hintTimer);
+          hintTimer = setTimeout(() => {
+            try { maybeShowHint(); } catch {}
+          }, hintDelayMs);
+        };
+
+        const resetHintTimer = () => {
+          clearHint();
+          scheduleHint();
+        };
+
+        const onPlayerActivity = () => {
+          resetHintTimer();
+        };
+
+        const hasMatchAround = (types, r, c) => {
+          const type = types[r][c];
+          if (!type) return false;
+          // horizontal
+          let count = 1;
+          for (let cc = c - 1; cc >= 0 && types[r][cc] === type; cc -= 1) count += 1;
+          for (let cc = c + 1; cc < boardSize && types[r][cc] === type; cc += 1) count += 1;
+          if (count >= 3) return true;
+          // vertical
+          count = 1;
+          for (let rr = r - 1; rr >= 0 && types[rr][c] === type; rr -= 1) count += 1;
+          for (let rr = r + 1; rr < boardSize && types[rr][c] === type; rr += 1) count += 1;
+          return count >= 3;
+        };
+
+        const findAnyLegalMove = () => {
+          // Build a 2D array of types
+          const types = Array.from({ length: boardSize }, (_, r) => (
+            Array.from({ length: boardSize }, (_, c) => state.board[pointToIndex(r, c)]?.type || null)
+          ));
+
+          const tryPair = (i, j) => {
+            const { row: r1, col: c1 } = indexToPoint(i);
+            const { row: r2, col: c2 } = indexToPoint(j);
+            const cellA = state.board[i];
+            const cellB = state.board[j];
+            // Any special involved is always a legal swap
+            if (cellA?.special || cellB?.special) return [i, j];
+            if (!cellA?.type || !cellB?.type) return null;
+            // swap in the local types grid
+            const t1 = types[r1][c1];
+            const t2 = types[r2][c2];
+            types[r1][c1] = t2;
+            types[r2][c2] = t1;
+            const ok = hasMatchAround(types, r1, c1) || hasMatchAround(types, r2, c2);
+            // swap back
+            types[r1][c1] = t1;
+            types[r2][c2] = t2;
+            return ok ? [i, j] : null;
+          };
+
+          for (let r = 0; r < boardSize; r += 1) {
+            for (let c = 0; c < boardSize; c += 1) {
+              const i = pointToIndex(r, c);
+              // right neighbor
+              if (c + 1 < boardSize) {
+                const j = pointToIndex(r, c + 1);
+                const res = tryPair(i, j);
+                if (res) return res;
+              }
+              // down neighbor
+              if (r + 1 < boardSize) {
+                const j = pointToIndex(r + 1, c);
+                const res = tryPair(i, j);
+                if (res) return res;
+              }
+            }
+          }
+          return null;
+        };
+
+        const maybeShowHint = () => {
+          if (state.busy) { scheduleHint(); return; }
+          const mv = findAnyLegalMove();
+          if (mv) {
+            const [a, b] = mv;
+            showHint(a, b);
+          } else {
+            // No legal move found; try again later
+            scheduleHint();
+          }
+        };
+
         state.busy = true;
         bootstrapBoard();
         updateHud();
