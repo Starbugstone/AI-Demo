@@ -409,8 +409,8 @@
           },
           {
             id: 'jade',
-            colors: ['#4ade80', '#22c55e'],
-            glow: 'rgba(34, 197, 94, 0.48)',
+            colors: ['#16a34a', '#166534'],
+            glow: 'rgba(22, 163, 74, 0.48)',
             glyph: '🍏',
           },
           {
@@ -690,6 +690,24 @@
           applyCandyStyle(cellB, tempType);
         };
 
+        const attemptSwap = async (origin, target) => {
+          if (state.busy) return false;
+          state.busy = true;
+          swapCandies(origin, target);
+          const hadMatches = await resolveBoard(1);
+          if (!hadMatches) {
+            swapCandies(origin, target);
+            flashInvalid(origin, target);
+            state.busy = false;
+            return false;
+          }
+
+          state.moves += 1;
+          updateHud();
+          state.busy = false;
+          return true;
+        };
+
         const handleCellSelection = async (event) => {
           event.preventDefault();
           if (state.busy) return;
@@ -714,24 +732,11 @@
             return;
           }
 
-          state.busy = true;
           const origin = state.selected;
           origin.element.classList.remove('selected');
           deselect();
-
-          swapCandies(origin, cell);
-          const hadMatches = await resolveBoard(1);
-          if (!hadMatches) {
-            swapCandies(origin, cell);
-            flashInvalid(origin, cell);
-            state.busy = false;
-            return;
-          }
-
-          state.moves += 1;
-          updateHud();
-          state.busy = false;
-        };
+          await attemptSwap(origin, cell);
+          };
 
         const bootstrapBoard = () => {
           for (let index = 0; index < totalCells; index += 1) {
@@ -749,6 +754,38 @@
               if (event.key === 'Enter' || event.key === ' ') {
                 handleCellSelection(event);
               }
+            });
+
+            // Enable drag-and-drop swapping
+            cell.element.draggable = true;
+            cell.element.addEventListener('dragstart', (event) => {
+              try {
+                event.dataTransfer?.setData('text/plain', String(index));
+                event.dataTransfer?.setDragImage(cell.element, Math.floor(cell.element.offsetWidth/2), Math.floor(cell.element.offsetHeight/2));
+              } catch {}
+              cell.element.classList.add('selected');
+            });
+            cell.element.addEventListener('dragover', (event) => {
+              // Necessary to allow drop
+              event.preventDefault();
+            });
+            cell.element.addEventListener('drop', async (event) => {
+              event.preventDefault();
+              const srcIndex = Number(event.dataTransfer?.getData('text/plain'));
+              const dstIndex = Number(cell.element.dataset.index);
+              const origin = state.board[srcIndex];
+              const targetCell = state.board[dstIndex];
+              // Clean selected style from dragstart origin if still present
+              origin?.element?.classList?.remove('selected');
+              if (!origin || !targetCell || origin === targetCell) return;
+              if (!isAdjacent(origin.index, targetCell.index)) {
+                flashInvalid(origin, targetCell);
+                return;
+              }
+              await attemptSwap(origin, targetCell);
+            });
+            cell.element.addEventListener('dragend', () => {
+              cell.element.classList.remove('selected');
             });
           }
 

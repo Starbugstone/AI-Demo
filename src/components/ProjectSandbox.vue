@@ -355,6 +355,25 @@ const injectHtml = async (html, baseUrl, currentTicket) => {
   target.appendChild(defaultStyle)
 
   const scriptsBucket = []
+
+  // First, bring over critical styles from <head> so layout renders correctly
+  const headNodes = Array.from(documentFragment.head?.childNodes ?? [])
+  for (const child of headNodes) {
+    if (ticket !== currentTicket) return
+    // Only include stylesheets and inline styles from head
+    if (
+      child.nodeType === Node.ELEMENT_NODE &&
+      ((child.tagName === 'LINK' && child.getAttribute('rel') === 'stylesheet') ||
+        child.tagName === 'STYLE')
+    ) {
+      const cloned = await cloneNodeTree(child, baseUrl, scriptsBucket)
+      if (cloned) {
+        target.appendChild(cloned)
+      }
+    }
+  }
+
+  // Then, inject body content
   const nodes = Array.from(documentFragment.body.childNodes)
 
   for (const child of nodes) {
