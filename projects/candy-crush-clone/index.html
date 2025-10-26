@@ -810,7 +810,7 @@
           state.score += expanded.size * 45 * cascadeLevel;
           updateHud();
           logCombo(expanded.size, cascadeLevel);
-          playSfx(baseMatched.size !== expanded.size ? 'bomb' : 'match', { cascadeLevel });
+          playSfx(baseMatched.size !== expanded.size ? 'bomb' : 'match', { cascadeLevel, power: expanded.size });
           await delay(240);          const crossIndexSet = new Set(crossList.map((p) => p.index));
           const filteredBombPlacements = bombPlacements.filter((b) => !crossIndexSet.has(b.index));
           const placements = filteredBombPlacements.concat(crossList);
@@ -852,14 +852,28 @@
           }, 320);
         };
         
-        const audio = { ctx: null };
-        const fx = { canvas: null, ctx: null, particles: [], beams: [], lastResize: 0 };
+        const audio = { ctx: null, bus: null };
+        const fx = { canvas: null, ctx: null, particles: [], beams: [], rings: [], lastResize: 0, shakeEnd: 0, shakeMag: 0 };
         // Initialize effects once root elements exist
         initFx();
 
         const initAudio = () => {
           if (audio.ctx) return;
-          try { audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+          try {
+            audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const ctx = audio.ctx;
+            const busGain = ctx.createGain();
+            busGain.gain.value = 0.9;
+            const comp = ctx.createDynamicsCompressor();
+            comp.threshold.value = -24;
+            comp.knee.value = 30;
+            comp.ratio.value = 12;
+            comp.attack.value = 0.003;
+            comp.release.value = 0.25;
+            busGain.connect(comp);
+            comp.connect(ctx.destination);
+            audio.bus = busGain;
+          } catch {}
         };
 
         function initFx() {
@@ -886,6 +900,20 @@
           if (!fx.ctx || !fx.canvas) return;
           const ctx = fx.ctx;
           ctx.clearRect(0, 0, fx.canvas.width, fx.canvas.height);
+          // Screen shake via shell transform
+          try {
+            const shell = fx.canvas.parentElement;
+            const nowMs = performance.now();
+            if (nowMs < fx.shakeEnd) {
+              const t = (fx.shakeEnd - nowMs) / 180;
+              const mag = fx.shakeMag * Math.max(0, t);
+              const dx = (Math.random() * 2 - 1) * mag;
+              const dy = (Math.random() * 2 - 1) * mag;
+              shell.style.transform = `translate(${dx}px, ${dy}px)`;
+            } else if (shell.style.transform) {
+              shell.style.transform = '';
+            }
+          } catch {}
           const now = performance.now();
           // beams
           fx.beams = fx.beams.filter((b) => now < b.end);
@@ -923,6 +951,21 @@
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             ctx.fill();
+            ctx.restore();
+          }
+          // rings
+          const now2 = performance.now();
+          fx.rings = fx.rings.filter((r) => now2 < r.end);
+          for (const r of fx.rings) {
+            const pr = Math.min(1, (now2 - r.start) / r.duration);
+            const radius = r.r0 + (r.r1 - r.r0) * pr;
+            ctx.save();
+            ctx.globalAlpha = (1 - pr) * r.alpha;
+            ctx.strokeStyle = r.color;
+            ctx.lineWidth = r.width * (1 - pr * 0.7);
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
+            ctx.stroke();
             ctx.restore();
           }
           requestAnimationFrame(tickFx);
@@ -976,6 +1019,27 @@
           }
         };
 
+        const addRing = (x, y, opts = {}) => {
+          if (!fx.ctx) return;
+          const now = performance.now();
+          fx.rings.push({
+            x, y,
+            r0: opts.r0 ?? 10,
+            r1: opts.r1 ?? 110,
+            width: opts.width ?? 6,
+            color: opts.color ?? 'rgba(250,204,21,0.9)',
+            alpha: opts.alpha ?? 0.9,
+            start: now,
+            duration: opts.duration ?? 260,
+            end: now + (opts.duration ?? 260),
+          });
+        };
+
+        const kickShake = (magnitude = 6, duration = 180) => {
+          fx.shakeMag = magnitude;
+          fx.shakeEnd = performance.now() + duration;
+        };
+
         const playTone = (freq = 440, duration = 0.08, type = 'sine', gain = 0.05, pan = 0) => {
           if (!audio.ctx) return;
           const ctx = audio.ctx;
@@ -985,8 +1049,9 @@
           osc.type = type;
           osc.frequency.value = freq;
           g.gain.value = gain;
-          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(ctx.destination); }
-          else { osc.connect(g); g.connect(ctx.destination); }
+          const dest = audio.bus ?? ctx.destination;
+          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(dest); }
+          else { osc.connect(g); g.connect(dest); }
           const now = ctx.currentTime;
           g.gain.setValueAtTime(gain, now);
           g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -1007,7 +1072,8 @@
           const filt = ctx.createBiquadFilter();
           filt.type = type;
           filt.frequency.value = 800;
-          src.connect(filt); filt.connect(g); g.connect(ctx.destination);
+          const dest = audio.bus ?? ctx.destination;
+          src.connect(filt); filt.connect(g); g.connect(dest);
           const now = ctx.currentTime;
           g.gain.setValueAtTime(gain, now);
           g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -1018,7 +1084,8 @@
         const playSfx = (kind, opts = {}) => {
           initAudio();
           const level = Math.max(1, opts.cascadeLevel ?? state.activeCascade ?? 1);
-          const boost = Math.min(0.06, 0.01 * (level - 1));
+          const boost = Math.min(0.12, 0.02 * (level - 1));
+          const power = Math.max(0, Math.min(1, (opts.power ?? 0) / 36));
           const pan = (Math.random() * 2 - 1) * 0.2;
           switch (kind) {
             case 'swap':
@@ -1030,10 +1097,11 @@
             case 'match':
               playTone(700 + Math.random() * 30, 0.07, 'sine', 0.05 + boost, pan);
               setTimeout(() => playTone(880 + Math.random() * 30, 0.06, 'sine', 0.045 + boost, -pan), 60);
+              if (level >= 3) setTimeout(() => playTone(1100 + Math.random() * 25, 0.06, 'triangle', 0.035 + boost * 0.6, pan * -0.5), 90);
               break;
             case 'bomb':
-              playNoise(0.18, 0.06 + boost * 1.2, 'lowpass');
-              setTimeout(() => playTone(180, 0.14, 'sine', 0.045 + boost, pan), 70);
+              playNoise(0.2, 0.07 + boost * 1.1 + power * 0.05, 'lowpass');
+              setTimeout(() => playTone(90 + power * 40, 0.18, 'sine', 0.08 + boost * 0.6, pan * 0.3), 20);
               break;
             case 'laser':
               playTone(1400, 0.05, 'square', 0.035 + boost, pan);
@@ -1110,9 +1178,11 @@
               centers.forEach((ci) => {
                 const { x, y } = cellCenter(ci);
                 burstParticles(x, y, { count: 42, speed: 320, life: 0.7 });
+                addRing(x, y, { r0: 12, r1: 130, width: 8, color: 'rgba(248,113,113,0.9)', duration: 260 });
               });
+              kickShake(Math.min(10, 4 + affected.size * 0.15), 220);
             } catch {}
-            playSfx('bomb', { cascadeLevel: state.activeCascade || 1 });
+            playSfx('bomb', { cascadeLevel: state.activeCascade || 1, power: affected.size });
             await delay(240);
             affected.forEach((i) => {
               const c = state.board[i];
@@ -1156,8 +1226,10 @@
                   burstParticles(x, y, { count: 12, speed: 220, life: 0.45, gravity: 260 });
                 });
               }, 200);
+              addRing(sx, sy, { r0: 10, r1: 120, width: 7, color: 'rgba(96,165,250,0.9)', duration: 260 });
+              kickShake(Math.min(8, 3 + indices.length * 0.08), 200);
             } catch {}
-            playSfx('laser', { cascadeLevel: state.activeCascade || 1 });
+            playSfx('laser', { cascadeLevel: state.activeCascade || 1, power: affected.size });
             await delay(260);
             affected.forEach((i) => {
               const c = state.board[i];
@@ -1195,8 +1267,10 @@
               addBeam(lx, ly, rx, ry, { colorStart: 'rgba(250,204,21,0.95)', colorEnd: 'rgba(244,114,182,0.95)', baseWidth: 10, duration: 220 });
               addBeam(tx, ty, bx, by, { colorStart: 'rgba(250,204,21,0.95)', colorEnd: 'rgba(96,165,250,0.95)', baseWidth: 10, duration: 220 });
               burstParticles(cx, cy, { count: 28, speed: 280, life: 0.5 });
+              addRing(cx, cy, { r0: 10, r1: 120, width: 7, color: 'rgba(250,204,21,0.9)', duration: 220 });
+              kickShake(7, 220);
             } catch {}
-            playSfx('laser', { cascadeLevel: state.activeCascade || 1 });
+            playSfx('laser', { cascadeLevel: state.activeCascade || 1, power: affected.size });
             await delay(240);
             affected.forEach((i) => {
               const c = state.board[i];
