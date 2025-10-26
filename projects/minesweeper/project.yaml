@@ -2,7 +2,7 @@ name: Minesweeper
 summary: Classic minesweeper game with multiple difficulty levels, flagging, and timer functionality.
 agents:
   - Claude Sonnet 4.5
-status: prototype
+status: beta game
 tags:
   - game
   - interactive

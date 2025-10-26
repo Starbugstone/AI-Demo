@@ -537,6 +537,12 @@
             element.style.boxShadow = `0 0.7rem 1.6rem rgba(244, 114, 182, 0.55), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35)`;
             element.innerHTML = `<span class="glyph">🌈</span>`;
             element.classList.add('upgrade');
+          } else if (special === 'cross') {
+            element.classList.add('cross');
+            element.style.background = 'linear-gradient(135deg, ' + candy.colors[0] + ', ' + candy.colors[1] + ')';
+            element.style.boxShadow = '0 0.7rem 1.6rem rgba(250, 204, 21, 0.55), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35)';
+            element.innerHTML = '<span class="glyph">✚</span>';
+            element.classList.add('upgrade');
           }
         };
         
@@ -734,6 +740,25 @@
           const bombPlacements = [];
           const lastA = state.lastSwap?.a;
           const lastB = state.lastSwap?.b;
+          // Cross/T intersections (horizontal >=3 meets vertical >=3 of same type)
+          const crossPlacements = [];
+          const horizRuns = runs.filter((r) => r.direction === 'h' && r.indices.length >= 3);
+          const vertRuns = runs.filter((r) => r.direction === 'v' && r.indices.length >= 3);
+          horizRuns.forEach((h) => {
+            vertRuns.forEach((v) => {
+              if (h.type !== v.type) return;
+              const vset = new Set(v.indices);
+              const intersection = h.indices.filter((i) => vset.has(i));
+              if (intersection.length) {
+                let pivot = intersection.find((i) => i === lastA || i === lastB);
+                if (pivot == null) pivot = intersection[Math.floor(intersection.length / 2)];
+                crossPlacements.push({ index: pivot, type: h.type, special: 'cross' });
+              }
+            });
+          });
+          // Deduplicate by index (keep last)
+          const crossByIndex = new Map(crossPlacements.map((p) => [p.index, p]));
+          const crossList = Array.from(crossByIndex.values());
           runs.forEach((run) => {
             if (run.indices.length >= 4) {
               let pivot = run.indices.find((i) => i === lastB || i === lastA);
@@ -762,13 +787,14 @@
           updateHud();
           logCombo(expanded.size, cascadeLevel);
           playSfx(baseMatched.size !== expanded.size ? 'bomb' : 'match');
-          await delay(240);
-          
-          const bombIndexSet = new Set(bombPlacements.map((b) => b.index));
+          await delay(240);          const crossIndexSet = new Set(crossList.map((p) => p.index));
+          const filteredBombPlacements = bombPlacements.filter((b) => !crossIndexSet.has(b.index));
+          const placements = filteredBombPlacements.concat(crossList);
+          const placementIndexSet = new Set(placements.map((p) => p.index));
           expanded.forEach((index) => {
             const cell = state.board[index];
-            if (bombIndexSet.has(index)) {
-              const bp = bombPlacements.find((b) => b.index === index);
+            if (placementIndexSet.has(index)) {
+              const bp = placements.find((p) => p.index === index);
               applySpecialStyle(cell, bp?.special || 'bomb', bp?.type || cell.type);
             } else {
               applyCandyStyle(cell, null);
@@ -865,17 +891,19 @@
           const wasBombA = origin.special === 'bomb';
           const wasBombB = target.special === 'bomb';
           const wasOrbA = origin.special === 'orb';
+          const wasCrossA = origin.special === 'cross';
+          const wasCrossB = target.special === 'cross';
           const wasOrbB = target.special === 'orb';
           const otherTypeForOrb = wasOrbA ? target.type : wasOrbB ? origin.type : null;
           
           swapCandies(origin, target);
           
+          const crossAfterIndex = wasCrossA ? target.index : wasCrossB ? origin.index : null;
           const bombAfterIndex = wasBombA ? target.index : wasBombB ? origin.index : null;
           const orbAfterIndex = wasOrbA ? target.index : wasOrbB ? origin.index : null;
           
-                    const detonateBombAt = async (centerIndex) => {
+                              const detonateBombAt = async (centerIndex) => {
             if (centerIndex == null) return;
-            // Chain-reaction: flood fill from initial bomb through adjacent bombs
             const affected = new Set();
             const toProcess = [];
             const visitedBombs = new Set();
@@ -898,13 +926,11 @@
                   if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
                   const nIdx = pointToIndex(rr, cc);
                   affected.add(nIdx);
-                  // If this neighbor is also a bomb, chain it
                   enqueueIfBomb(nIdx);
                 }
               }
             }
 
-            // Visual/clear
             affected.forEach((i) => {
               const c = state.board[i];
               c.element.classList.add('clearing', 'blast');
@@ -923,7 +949,8 @@
             await delay(160);
             await resolveBoard(1);
           };
-                    const detonateOrb = async (orbIndex, targetType) => {
+
+          const detonateOrb = async (orbIndex, targetType) => {
             if (orbIndex == null || !targetType) return;
             const affected = new Set();
             for (let i = 0; i < totalCells; i += 1) {
@@ -948,8 +975,31 @@
             await delay(160);
             await resolveBoard(1);
           };
-          
-          if (wasBombA || wasBombB) {
+
+          const detonateCrossAt = async (centerIndex) => {
+            if (centerIndex == null) return;
+            const affected = new Set();
+            const { row, col } = indexToPoint(centerIndex);
+            for (let c = 0; c < boardSize; c += 1) affected.add(pointToIndex(row, c));
+            for (let r = 0; r < boardSize; r += 1) affected.add(pointToIndex(r, col));
+            affected.forEach((i) => {
+              const c = state.board[i];
+              c.element.classList.add('clearing', 'blast');
+            });
+            playSfx('bomb');
+            await delay(240);
+            affected.forEach((i) => {
+              const c = state.board[i];
+              applyCandyStyle(c, null);
+              c.element.classList.remove('clearing', 'blast');
+            });
+            await delay(80);
+            collapseColumns();
+            await delay(140);
+            refillBoard();
+            await delay(160);
+            await resolveBoard(1);
+          };if (wasBombA || wasBombB) {
             await detonateBombAt(bombAfterIndex);
             state.moves += 1;
             updateHud();
@@ -959,6 +1009,13 @@
           
           if (wasOrbA || wasOrbB) {
             await detonateOrb(orbAfterIndex, otherTypeForOrb);
+            state.moves += 1;
+            updateHud();
+            state.busy = false;
+            return true;
+          }
+          if (wasCrossA || wasCrossB) {
+            await detonateCrossAt(crossAfterIndex);
             state.moves += 1;
             updateHud();
             state.busy = false;
@@ -1081,3 +1138,13 @@
     </script>
   </body>
 </html>
+
+
+
+
+
+
+
+
+
+

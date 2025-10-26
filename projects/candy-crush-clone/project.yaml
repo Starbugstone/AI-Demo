@@ -4,10 +4,10 @@ agents:
   - GPT-5-Codex
   - Midjourney
   - Claude Sonnet 4.5
-status: prototype
+status: beta game
 tags:
   - game
   - puzzle
   - interactive
   - candy
-order: 55
+order: 6
