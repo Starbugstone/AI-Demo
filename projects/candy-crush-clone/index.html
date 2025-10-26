@@ -694,6 +694,41 @@
             }
           });
           
+          // Bomb chain reaction within match resolution: if a bomb is blasted by another bomb, it also explodes
+          (function chainFromBlastedBombs() {
+            const visited = new Set();
+            const queue = [];
+            expanded.forEach((idx) => {
+              if (!baseMatched.has(idx)) {
+                const c = state.board[idx];
+                if (c?.special === 'bomb') {
+                  visited.add(idx);
+                  queue.push(idx);
+                }
+              }
+            });
+            while (queue.length) {
+              const bIdx = queue.shift();
+              const { row, col } = indexToPoint(bIdx);
+              for (let dr = -1; dr <= 1; dr += 1) {
+                for (let dc = -1; dc <= 1; dc += 1) {
+                  const rr = row + dr;
+                  const cc = col + dc;
+                  if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                  const nIdx = pointToIndex(rr, cc);
+                  if (!expanded.has(nIdx)) {
+                    expanded.add(nIdx);
+                  }
+                  const nCell = state.board[nIdx];
+                  if (nCell?.special === 'bomb' && !visited.has(nIdx)) {
+                    visited.add(nIdx);
+                    queue.push(nIdx);
+                  }
+                }
+              }
+            }
+          })();
+          
           const blasted = new Set(Array.from(expanded).filter((i) => !baseMatched.has(i)));
           
           const bombPlacements = [];
@@ -838,18 +873,38 @@
           const bombAfterIndex = wasBombA ? target.index : wasBombB ? origin.index : null;
           const orbAfterIndex = wasOrbA ? target.index : wasOrbB ? origin.index : null;
           
-          const detonateBombAt = async (centerIndex) => {
+                    const detonateBombAt = async (centerIndex) => {
             if (centerIndex == null) return;
+            // Chain-reaction: flood fill from initial bomb through adjacent bombs
             const affected = new Set();
-            const { row, col } = indexToPoint(centerIndex);
-            for (let dr = -1; dr <= 1; dr += 1) {
-              for (let dc = -1; dc <= 1; dc += 1) {
-                const rr = row + dr;
-                const cc = col + dc;
-                if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
-                affected.add(pointToIndex(rr, cc));
+            const toProcess = [];
+            const visitedBombs = new Set();
+            const enqueueIfBomb = (idx) => {
+              const cell = state.board[idx];
+              if (cell?.special === 'bomb' && !visitedBombs.has(idx)) {
+                visitedBombs.add(idx);
+                toProcess.push(idx);
+              }
+            };
+            enqueueIfBomb(centerIndex);
+
+            while (toProcess.length) {
+              const bombIndex = toProcess.shift();
+              const { row, col } = indexToPoint(bombIndex);
+              for (let dr = -1; dr <= 1; dr += 1) {
+                for (let dc = -1; dc <= 1; dc += 1) {
+                  const rr = row + dr;
+                  const cc = col + dc;
+                  if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                  const nIdx = pointToIndex(rr, cc);
+                  affected.add(nIdx);
+                  // If this neighbor is also a bomb, chain it
+                  enqueueIfBomb(nIdx);
+                }
               }
             }
+
+            // Visual/clear
             affected.forEach((i) => {
               const c = state.board[i];
               c.element.classList.add('clearing', 'blast');
@@ -868,8 +923,7 @@
             await delay(160);
             await resolveBoard(1);
           };
-          
-          const detonateOrb = async (orbIndex, targetType) => {
+                    const detonateOrb = async (orbIndex, targetType) => {
             if (orbIndex == null || !targetType) return;
             const affected = new Set();
             for (let i = 0; i < totalCells; i += 1) {
