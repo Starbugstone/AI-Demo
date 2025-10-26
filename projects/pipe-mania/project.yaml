@@ -1,0 +1,11 @@
+name: Pipe Mania Redux
+summary: Rotate pressurized conduits to route coolant from the core to the drain before the surge hits.
+agents:
+  - GPT-5 Codex
+  - Midjourney
+status: prototype
+tags:
+  - puzzle
+  - arcade
+  - interactive
+order: 35

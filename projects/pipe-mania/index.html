@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pipe Mania Redux</title>
+    <style>
+      :host {
+        font-family: "Russo One", "Bebas Neue", system-ui, sans-serif;
+        color: #e2e8f0;
+        background: transparent;
+        display: block;
+        padding: 1.5rem clamp(1rem, 5vw, 3rem) 2rem;
+      }
+
+      body {
+        background: transparent;
+        margin: 0;
+      }
+
+      .wrapper {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: clamp(1.6rem, 2vw + 1.4rem, 3rem);
+        margin: 0 0 0.25rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #f8fafc;
+      }
+
+      .subtitle {
+        margin: 0 0 1rem;
+        color: #94a3b8;
+        letter-spacing: 0.08em;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+      }
+
+      .hud {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.75rem;
+        margin: 1rem 0 0.5rem;
+      }
+
+      .stat {
+        border-radius: 0.9rem;
+        padding: 0.85rem 1rem;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.72));
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08), 0 6px 18px rgba(2, 12, 27, 0.6);
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .stat .label {
+        font-size: 0.72rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+
+      .stat .value {
+        font-size: 1.35rem;
+        letter-spacing: 0.04em;
+        color: #f8fafc;
+      }
+
+      .message {
+        margin: 0.75rem 0 0;
+        padding: 0.85rem 1rem;
+        border-radius: 0.8rem;
+        background: linear-gradient(135deg, rgba(8, 47, 73, 0.6), rgba(14, 165, 233, 0.08));
+        box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.18);
+        font-size: 0.95rem;
+        min-height: 3rem;
+        display: flex;
+        align-items: center;
+      }
+
+      .message[data-tone="success"] {
+        background: linear-gradient(135deg, rgba(22, 163, 74, 0.3), rgba(13, 148, 136, 0.18));
+        box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.4);
+        color: #bbf7d0;
+      }
+
+      .message[data-tone="danger"] {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.28), rgba(190, 24, 93, 0.18));
+        box-shadow: inset 0 0 0 1px rgba(251, 113, 133, 0.4);
+        color: #fee2e2;
+      }
+
+      .board-wrap {
+        position: relative;
+        width: min(90vw, 640px);
+        aspect-ratio: 1 / 1;
+        margin: 1.6rem auto 1.2rem;
+        border-radius: 1.2rem;
+        padding: 1.2rem;
+        background: radial-gradient(circle at 20% 20%, rgba(6, 182, 212, 0.12), transparent 62%),
+          linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.7));
+        box-shadow: 0 30px 60px rgba(2, 10, 26, 0.7), inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        border-radius: 0.75rem;
+        background: linear-gradient(160deg, rgba(2, 6, 23, 0.92), rgba(15, 23, 42, 0.92));
+        box-shadow: inset 0 0 60px rgba(6, 182, 212, 0.07);
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: center;
+        margin-top: 0.5rem;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 0.85rem 1.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #0f172a;
+        cursor: pointer;
+        transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+        box-shadow: 0 12px 32px rgba(14, 165, 233, 0.35);
+      }
+
+      button.secondary {
+        background: linear-gradient(135deg, #f97316, #ef4444);
+        box-shadow: 0 12px 32px rgba(249, 115, 22, 0.35);
+      }
+
+      button:active {
+        transform: translateY(1px) scale(0.99);
+      }
+
+      button:focus-visible {
+        outline: 2px solid rgba(14, 165, 233, 0.75);
+        outline-offset: 3px;
+      }
+
+      @media (max-width: 600px) {
+        :host {
+          padding: 1rem;
+        }
+
+        .board-wrap {
+          padding: 0.9rem;
+          width: 100%;
+        }
+
+        button {
+          flex: 1 1 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <h1>Pipe Mania Redux</h1>
+      <p class="subtitle">Stabilize the coolant lattice before the surge arrives</p>
+      <div class="hud">
+        <div class="stat">
+          <span class="label">Level</span>
+          <span class="value" id="level">1</span>
+        </div>
+        <div class="stat">
+          <span class="label">Score</span>
+          <span class="value" id="score">0</span>
+        </div>
+        <div class="stat">
+          <span class="label">Pressure Surge</span>
+          <span class="value" id="timer">--</span>
+        </div>
+        <div class="stat">
+          <span class="label">Flow Integrity</span>
+          <span class="value" id="integrity">0%</span>
+        </div>
+      </div>
+      <p class="message" id="message">Rotate tiles to connect the left intake to the right drain. Time your build before the coolant surge hits.</p>
+      <div class="board-wrap">
+        <canvas id="board" width="720" height="720">Your browser does not support canvas.</canvas>
+      </div>
+      <div class="controls">
+        <button class="primary" id="force-flow">Release Coolant</button>
+        <button class="secondary" id="new-level">Reroute Grid</button>
+      </div>
+    </div>
+    <script>
+      (function () {
+        const root = document.currentScript.getRootNode();
+
+        if (root.__pipeManiaCleanup) {
+          root.__pipeManiaCleanup.forEach((fn) => {
+            try {
+              fn();
+            } catch (err) {
+              console.error(err);
+            }
+          });
+        }
+
+        const cleanupCallbacks = [];
+        root.__pipeManiaCleanup = cleanupCallbacks;
+        const registerCleanup = (fn) => cleanupCallbacks.push(fn);
+
+        const canvas = root.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        const levelEl = root.getElementById('level');
+        const scoreEl = root.getElementById('score');
+        const timerEl = root.getElementById('timer');
+        const messageEl = root.getElementById('message');
+        const integrityEl = root.getElementById('integrity');
+        const forceButton = root.getElementById('force-flow');
+        const newLevelButton = root.getElementById('new-level');
+        const boardWrap = root.querySelector('.board-wrap');
+
+        const DIRS = [
+          { name: 'top', dx: 0, dy: -1, bit: 1, oppositeBit: 4 },
+          { name: 'right', dx: 1, dy: 0, bit: 2, oppositeBit: 8 },
+          { name: 'bottom', dx: 0, dy: 1, bit: 4, oppositeBit: 1 },
+          { name: 'left', dx: -1, dy: 0, bit: 8, oppositeBit: 2 },
+        ];
+
+        const tileCatalog = [
+          { type: 'straight', baseMask: 1 | 4 },
+          { type: 'corner', baseMask: 1 | 2 },
+          { type: 'corner', baseMask: 2 | 4 },
+          { type: 'tee', baseMask: 1 | 2 | 4 },
+          { type: 'tee', baseMask: 2 | 4 | 8 },
+          { type: 'cross', baseMask: 1 | 2 | 4 | 8 },
+          { type: 'cap', baseMask: 2 },
+          { type: 'cap', baseMask: 8 },
+        ];
+
+        const fillerCatalog = [
+          { type: 'straight', baseMask: 1 | 4 },
+          { type: 'straight', baseMask: 1 | 4 },
+          { type: 'straight', baseMask: 2 | 8 },
+          { type: 'corner', baseMask: 1 | 2 },
+          { type: 'corner', baseMask: 2 | 4 },
+          { type: 'corner', baseMask: 4 | 8 },
+          { type: 'tee', baseMask: 1 | 2 | 4 },
+          { type: 'tee', baseMask: 2 | 4 | 8 },
+          { type: 'cross', baseMask: 1 | 2 | 4 | 8 },
+          { type: 'cap', baseMask: 2 },
+          { type: 'cap', baseMask: 8 },
+        ];
+
+        const state = {
+          gridSize: 9,
+          board: [],
+          start: null,
+          goal: null,
+          level: 1,
+          score: 0,
+          integrity: 0,
+          countdownRemaining: 24,
+          countdownId: null,
+          pendingTimeouts: [],
+          phase: 'idle',
+          failureCell: null,
+          lastFailureReason: '',
+          flowActive: false,
+          animationFrame: null,
+          shimmerSeed: Math.random() * 360,
+          pathTileCount: 0,
+        };
+
+        const dpr = globalThis.devicePixelRatio || 1;
+
+        function rotateMask(mask, rotation) {
+          let result = mask;
+          for (let i = 0; i < rotation; i += 1) {
+            let next = 0;
+            if (result & 1) next |= 2;
+            if (result & 2) next |= 4;
+            if (result & 4) next |= 8;
+            if (result & 8) next |= 1;
+            result = next;
+          }
+          return result;
+        }
+
+        function bitsFromMask(mask) {
+          const bits = [];
+          if (mask & 1) bits.push(1);
+          if (mask & 2) bits.push(2);
+          if (mask & 4) bits.push(4);
+          if (mask & 8) bits.push(8);
+          return bits;
+        }
+
+        function maskToDefinition(mask) {
+          for (const entry of tileCatalog) {
+            for (let r = 0; r < 4; r += 1) {
+              if (rotateMask(entry.baseMask, r) === mask) {
+                return { type: entry.type, baseMask: entry.baseMask, rotation: r };
+              }
+            }
+          }
+          return { type: 'straight', baseMask: 1 | 4, rotation: 0 };
+        }
+
+        function tileMask(tile) {
+          return rotateMask(tile.baseMask, tile.rotation % 4);
+        }
+
+        function randomInt(max) {
+          return Math.floor(Math.random() * max);
+        }
+
+        function vectorToBit(dx, dy) {
+          if (dx === 0 && dy === -1) return 1;
+          if (dx === 1 && dy === 0) return 2;
+          if (dx === 0 && dy === 1) return 4;
+          if (dx === -1 && dy === 0) return 8;
+          return 0;
+        }
+
+        function pushTimeout(fn, delay) {
+          const id = setTimeout(() => {
+            state.pendingTimeouts = state.pendingTimeouts.filter((stored) => stored !== id);
+            fn();
+          }, delay);
+          state.pendingTimeouts.push(id);
+          return id;
+        }
+
+        function clearPendingTimeouts() {
+          state.pendingTimeouts.forEach((id) => clearTimeout(id));
+          state.pendingTimeouts = [];
+        }
+
+        function stopCountdown() {
+          if (state.countdownId !== null) {
+            clearInterval(state.countdownId);
+            state.countdownId = null;
+          }
+        }
+
+        function setMessage(text, tone = 'info') {
+          messageEl.textContent = text;
+          messageEl.dataset.tone = tone;
+        }
+
+        function updateHud() {
+          levelEl.textContent = state.level;
+          scoreEl.textContent = state.score;
+          integrityEl.textContent = `${Math.round(state.integrity * 100)}%`;
+          if (state.phase === 'flow') {
+            timerEl.textContent = 'Flowing';
+          } else if (state.phase === 'win') {
+            timerEl.textContent = 'Stabilized';
+          } else {
+            timerEl.textContent = `${state.countdownRemaining}s`;
+          }
+        }
+
+        function createFillerTile() {
+          const entry = fillerCatalog[randomInt(fillerCatalog.length)];
+          return {
+            type: entry.type,
+            baseMask: entry.baseMask,
+            rotation: randomInt(4),
+            solutionRotation: null,
+            isPath: false,
+            special: null,
+            wetProgress: 0,
+            pulse: 0,
+          };
+        }
+
+        function buildPath(size) {
+          const maxAttempts = 80;
+          for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            const startY = randomInt(size);
+            const visited = new Set([`0,${startY}`]);
+            const path = [{ x: 0, y: startY }];
+            let x = 0;
+            let y = startY;
+            let safety = 0;
+            while (x < size - 1 && safety < size * size * 2) {
+              safety += 1;
+              const options = [];
+              const addOption = (dx, dy, weight) => {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx < 0 || nx >= size || ny < 0 || ny >= size) return;
+                const key = `${nx},${ny}`;
+                if (visited.has(key)) return;
+                options.push({ dx, dy, weight });
+              };
+
+              addOption(1, 0, 4.5);
+              addOption(0, -1, 1.2);
+              addOption(0, 1, 1.2);
+              if (x > 1) {
+                addOption(-1, 0, 0.35);
+              }
+
+              if (!options.length) {
+                break;
+              }
+
+              const weighted = options.flatMap((option) => Array.from({ length: Math.max(1, Math.round(option.weight * 10)) }, () => option));
+              const choice = weighted[randomInt(weighted.length)];
+              x += choice.dx;
+              y += choice.dy;
+              const key = `${x},${y}`;
+              visited.add(key);
+              path.push({ x, y });
+            }
+
+            if (x === size - 1) {
+              return { path, start: path[0], goal: path[path.length - 1] };
+            }
+          }
+          throw new Error('Failed to generate solvable path');
+        }
+
+        function prepareBoard() {
+          state.board = new Array(state.gridSize).fill(null).map(() => new Array(state.gridSize).fill(null));
+          for (let y = 0; y < state.gridSize; y += 1) {
+            for (let x = 0; x < state.gridSize; x += 1) {
+              state.board[y][x] = createFillerTile();
+            }
+          }
+
+          const { path, start, goal } = buildPath(state.gridSize);
+          state.start = start;
+          state.goal = goal;
+          state.pathTileCount = path.length;
+
+          path.forEach((node, index) => {
+            const connectors = [];
+            if (index === 0) {
+              connectors.push(8);
+              const next = path[index + 1];
+              connectors.push(vectorToBit(next.x - node.x, next.y - node.y));
+            } else if (index === path.length - 1) {
+              const prev = path[index - 1];
+              connectors.push(vectorToBit(prev.x - node.x, prev.y - node.y));
+              connectors.push(2);
+            } else {
+              const prev = path[index - 1];
+              const next = path[index + 1];
+              connectors.push(vectorToBit(prev.x - node.x, prev.y - node.y));
+              connectors.push(vectorToBit(next.x - node.x, next.y - node.y));
+            }
+
+            const mask = connectors.reduce((acc, bit) => acc | bit, 0);
+            const definition = maskToDefinition(mask);
+            let rotation = randomInt(4);
+            const solutionRotation = definition.rotation % 4;
+            if (rotation === solutionRotation && Math.random() < 0.7) {
+              rotation = (rotation + randomInt(3) + 1) % 4;
+            }
+
+            const tile = {
+              type: definition.type,
+              baseMask: definition.baseMask,
+              rotation,
+              solutionRotation,
+              isPath: true,
+              special: index === 0 ? 'start' : index === path.length - 1 ? 'goal' : null,
+              wetProgress: 0,
+              pulse: 0,
+            };
+
+            state.board[node.y][node.x] = tile;
+          });
+        }
+
+        function resetWetness() {
+          for (let y = 0; y < state.gridSize; y += 1) {
+            for (let x = 0; x < state.gridSize; x += 1) {
+              const tile = state.board[y][x];
+              tile.wetProgress = 0;
+              tile.pulse = 0;
+            }
+          }
+        }
+
+        function clearFlowState() {
+          state.flowActive = false;
+          state.failureCell = null;
+          state.lastFailureReason = '';
+          state.integrity = 0;
+        }
+
+        function resizeCanvas() {
+          const rect = boardWrap.getBoundingClientRect();
+          canvas.width = rect.width * dpr;
+          canvas.height = rect.height * dpr;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          drawBoard();
+        }
+
+        function drawTile(tile, x, y, size, timestamp) {
+          const mask = tileMask(tile);
+          const connectors = bitsFromMask(mask);
+          const cx = x + size / 2;
+          const cy = y + size / 2;
+          const radius = size * 0.18;
+          const baseColor = tile.isPath ? '#11233e' : '#0b1526';
+          ctx.fillStyle = baseColor;
+          ctx.fillRect(x, y, size, size);
+
+          ctx.strokeStyle = 'rgba(15, 23, 42, 0.7)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+
+          const shimmer = Math.sin((timestamp / 160 + (x + y) * 0.12 + state.shimmerSeed) % (Math.PI * 2));
+          const fillColor = tile.wetProgress > 0 ? `rgba(${14 + shimmer * 20}, ${197 + shimmer * 20}, ${240 + shimmer * 5}, 1)` : '#38bdf8';
+          ctx.lineWidth = size * 0.26;
+          ctx.lineCap = 'round';
+          connectors.forEach((bit) => {
+            const dir = DIRS.find((entry) => entry.bit === bit);
+            if (!dir) return;
+            const length = size / 2 - radius;
+            const startX = cx + dir.dx * (radius * 0.15);
+            const startY = cy + dir.dy * (radius * 0.15);
+            const endX = cx + dir.dx * length;
+            const endY = cy + dir.dy * length;
+            ctx.strokeStyle = fillColor;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+          });
+
+          ctx.fillStyle = fillColor;
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius * (1 + tile.wetProgress * 0.2), 0, Math.PI * 2);
+          ctx.fill();
+
+          if (tile.special === 'start') {
+            ctx.fillStyle = 'rgba(249, 115, 22, 0.95)';
+            ctx.beginPath();
+            ctx.moveTo(x + size * 0.16, y + size * 0.3);
+            ctx.lineTo(x + size * 0.36, y + size * 0.5);
+            ctx.lineTo(x + size * 0.16, y + size * 0.7);
+            ctx.closePath();
+            ctx.fill();
+          } else if (tile.special === 'goal') {
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.95)';
+            ctx.fillRect(x + size * 0.62, y + size * 0.3, size * 0.2, size * 0.4);
+          }
+
+          if (state.failureCell) {
+            const cellX = Math.round(x / size);
+            const cellY = Math.round(y / size);
+            if (cellX === state.failureCell.x && cellY === state.failureCell.y) {
+              ctx.strokeStyle = 'rgba(248, 113, 113, 0.9)';
+              ctx.lineWidth = size * 0.12;
+              ctx.beginPath();
+              ctx.arc(cx, cy, size * 0.36, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          }
+        }
+
+        function drawBoard(timestamp = performance.now()) {
+          if (!state.board.length) return;
+          const width = canvas.clientWidth;
+          const height = canvas.clientHeight;
+          ctx.clearRect(0, 0, width, height);
+          const tileSize = width / state.gridSize;
+          for (let y = 0; y < state.gridSize; y += 1) {
+            for (let x = 0; x < state.gridSize; x += 1) {
+              drawTile(state.board[y][x], x * tileSize, y * tileSize, tileSize, timestamp);
+            }
+          }
+          ctx.strokeStyle = 'rgba(15, 118, 110, 0.35)';
+          ctx.lineWidth = 1;
+          for (let i = 1; i < state.gridSize; i += 1) {
+            const pos = i * (width / state.gridSize);
+            ctx.beginPath();
+            ctx.moveTo(pos, 0);
+            ctx.lineTo(pos, height);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, pos);
+            ctx.lineTo(width, pos);
+            ctx.stroke();
+          }
+        }
+
+        function traceFlow() {
+          const sequence = [];
+          const visited = new Set();
+          let current = { x: state.start.x, y: state.start.y };
+          let incoming = 8;
+          while (true) {
+            const key = `${current.x},${current.y}`;
+            if (visited.has(key)) {
+              return { success: false, sequence, failure: current, reason: 'Coolant loop detected. Too many junctions.' };
+            }
+            visited.add(key);
+            const tile = state.board[current.y][current.x];
+            const connectors = bitsFromMask(tileMask(tile));
+            if (!connectors.includes(incoming)) {
+              return { success: false, sequence, failure: current, reason: 'Pressure leak detected. Pipe orientation mismatch.' };
+            }
+            sequence.push({ x: current.x, y: current.y });
+            if (current.x === state.goal.x && current.y === state.goal.y) {
+              if (connectors.includes(2)) {
+                return { success: true, sequence, failure: null, reason: '' };
+              }
+              return { success: false, sequence, failure: current, reason: 'Drain not engaged. Rotate the outlet.' };
+            }
+            const outgoingOptions = connectors.filter((bit) => bit !== incoming);
+            if (outgoingOptions.length !== 1) {
+              return { success: false, sequence, failure: current, reason: 'Flow split occurred. Limit to a single outbound pipe.' };
+            }
+            const outBit = outgoingOptions[0];
+            const dir = DIRS.find((entry) => entry.bit === outBit);
+            if (!dir) {
+              return { success: false, sequence, failure: current, reason: 'Routing failure.' };
+            }
+            const nx = current.x + dir.dx;
+            const ny = current.y + dir.dy;
+            if (nx < 0 || nx >= state.gridSize || ny < 0 || ny >= state.gridSize) {
+              return { success: false, sequence, failure: current, reason: 'Coolant escaped the lattice bounds.' };
+            }
+            current = { x: nx, y: ny };
+            incoming = dir.oppositeBit;
+          }
+        }
+
+        function animateFlow(sequence, success, reason) {
+          if (!sequence.length) {
+            handleFailure(reason || 'No coolant path detected.', state.start);
+            return;
+          }
+          state.flowActive = true;
+          state.phase = 'flow';
+          updateHud();
+          clearPendingTimeouts();
+          resetWetness();
+          const total = sequence.length;
+          sequence.forEach((cell, index) => {
+            pushTimeout(() => {
+              const tile = state.board[cell.y][cell.x];
+              tile.wetProgress = 1;
+              state.integrity = (index + 1) / total;
+              drawBoard();
+              updateHud();
+              if (index === total - 1) {
+                pushTimeout(() => {
+                  if (success) {
+                    handleSuccess();
+                  } else {
+                    handleFailure(reason, cell);
+                  }
+                }, 360);
+              }
+            }, index * 180);
+          });
+        }
+
+        function handleSuccess() {
+          state.phase = 'win';
+          const reward = Math.round(120 + state.countdownRemaining * 6 + state.level * 12);
+          state.score += reward;
+          setMessage(`Coolant stabilized! +${reward} score. Preparing a denser lattice...`, 'success');
+          state.flowActive = false;
+          updateHud();
+          pushTimeout(() => {
+            state.level += 1;
+            const nextCountdown = Math.max(14, 26 - state.level * 2);
+            nextLevel(nextCountdown);
+          }, 1500);
+        }
+
+        function handleFailure(reason, cell) {
+          const failureReason = reason || 'Coolant destabilized. Check your junctions.';
+          state.phase = 'idle';
+          state.failureCell = cell;
+          state.lastFailureReason = failureReason;
+          state.integrity = 0;
+          state.score = Math.max(0, state.score - 45);
+          setMessage(`${failureReason} Integrity penalty applied. Reconfigure and trigger flow again.`, 'danger');
+          state.flowActive = false;
+          updateHud();
+          pushTimeout(() => {
+            state.failureCell = null;
+            drawBoard();
+          }, 2200);
+          pushTimeout(() => {
+            state.countdownRemaining = Math.max(10, state.countdownRemaining - 2);
+            startCountdown();
+          }, 1600);
+        }
+
+        function startCountdown() {
+          stopCountdown();
+          state.phase = 'countdown';
+          updateHud();
+          setMessage('Rotate tiles to forge an unbroken conduit, then release the coolant surge.');
+          state.countdownId = setInterval(() => {
+            state.countdownRemaining -= 1;
+            if (state.countdownRemaining <= 0) {
+              stopCountdown();
+              setMessage('Surge released automatically! Hold your breath...', 'danger');
+              runFlow();
+            }
+            updateHud();
+          }, 1000);
+        }
+
+        function runFlow() {
+          if (state.flowActive) return;
+          stopCountdown();
+          const result = traceFlow();
+          clearFlowState();
+          animateFlow(result.sequence, result.success, result.reason);
+        }
+
+        function nextLevel(countdownOverride) {
+          stopCountdown();
+          clearPendingTimeouts();
+          prepareBoard();
+          resetWetness();
+          clearFlowState();
+          state.countdownRemaining = typeof countdownOverride === 'number' ? Math.round(countdownOverride) : Math.max(14, 28 - state.level * 2);
+          state.phase = 'countdown';
+          drawBoard();
+          updateHud();
+          setMessage('New lattice online. Rotate tiles and unleash the coolant when ready.');
+          startCountdown();
+        }
+
+        function handleClick(event) {
+          if (state.phase === 'flow') return;
+          const rect = canvas.getBoundingClientRect();
+          const size = rect.width / state.gridSize;
+          const x = Math.floor((event.clientX - rect.left) / size);
+          const y = Math.floor((event.clientY - rect.top) / size);
+          if (Number.isNaN(x) || Number.isNaN(y)) return;
+          if (x < 0 || x >= state.gridSize || y < 0 || y >= state.gridSize) return;
+          const tile = state.board[y][x];
+          tile.rotation = (tile.rotation + 1) % 4;
+          tile.pulse = 1;
+          tile.wetProgress = 0;
+          const solved = state.board
+            .flat()
+            .filter((cell) => cell.isPath && (cell.rotation % 4) === cell.solutionRotation).length;
+          state.integrity = state.pathTileCount ? solved / state.pathTileCount : 0;
+          drawBoard();
+          updateHud();
+        }
+
+        function tick(timestamp) {
+          drawBoard(timestamp);
+          state.animationFrame = requestAnimationFrame(tick);
+        }
+
+        function init() {
+          registerCleanup(() => {
+            stopCountdown();
+            clearPendingTimeouts();
+            if (state.animationFrame) {
+              cancelAnimationFrame(state.animationFrame);
+              state.animationFrame = null;
+            }
+          });
+          const resizeObserver = new ResizeObserver(resizeCanvas);
+          resizeObserver.observe(boardWrap);
+          registerCleanup(() => resizeObserver.disconnect());
+          resizeCanvas();
+          nextLevel(state.countdownRemaining);
+          state.animationFrame = requestAnimationFrame(tick);
+          canvas.addEventListener('click', handleClick);
+          registerCleanup(() => canvas.removeEventListener('click', handleClick));
+          forceButton.addEventListener('click', runFlow);
+          registerCleanup(() => forceButton.removeEventListener('click', runFlow));
+          const manualLevelHandler = () => {
+            const manualCountdown = Math.max(18, 30 - state.level * 2);
+            nextLevel(manualCountdown);
+          };
+          newLevelButton.addEventListener('click', manualLevelHandler);
+          registerCleanup(() => newLevelButton.removeEventListener('click', manualLevelHandler));
+        }
+
+        init();
+      })();
+    </script>
+  </body>
+</html>
