@@ -184,6 +184,32 @@
       .candy.cross {
         box-shadow: 0 0.6rem 1.4rem rgba(250, 204, 21, 0.45), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35);
       }
+      /* Over-the-top shiny bonuses */
+      .candy.bomb, .candy.orb, .candy.cross {
+        animation: glowPulse 1600ms ease-in-out infinite alternate;
+        position: relative;
+        overflow: hidden;
+      }
+      .candy.bomb::before, .candy.orb::before, .candy.cross::before {
+        content: "";
+        position: absolute;
+        inset: -20% -40% -20% -40%;
+        background: linear-gradient(75deg, rgba(255,255,255,0) 35%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 65%);
+        transform: translateX(-60%) rotate(12deg);
+        animation: sheenMove 2200ms ease-in-out infinite;
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+      @keyframes glowPulse {
+        0% { filter: brightness(1) saturate(1); box-shadow: 0 0.6rem 1.4rem rgba(244,114,182,0.35), inset 0 -0.35rem 0.5rem rgba(15,23,42,0.35); }
+        100% { filter: brightness(1.25) saturate(1.2); box-shadow: 0 1rem 2rem rgba(244,114,182,0.6), inset 0 -0.35rem 0.6rem rgba(15,23,42,0.45); }
+      }
+      @keyframes sheenMove {
+        0% { transform: translateX(-70%) rotate(12deg); opacity: 0.0; }
+        35% { opacity: 0.65; }
+        50% { transform: translateX(20%) rotate(12deg); opacity: 0.0; }
+        100% { transform: translateX(60%) rotate(12deg); opacity: 0.0; }
+      }
       .candy .glyph {
         position: relative;
         z-index: 1;
@@ -322,6 +348,22 @@
           transform: scale(0);
           opacity: 0;
         }
+      }
+      /* Subtle animated board lights */
+      .board-shell::after {
+        content: "";
+        position: absolute;
+        inset: 0.4rem;
+        background: radial-gradient(60% 100% at 50% 0%, rgba(96,165,250,0.12), rgba(14,165,233,0) 60%),
+                    radial-gradient(70% 120% at 100% 100%, rgba(244,114,182,0.08), rgba(244,114,182,0) 70%);
+        border-radius: 1rem;
+        pointer-events: none;
+        animation: boardGlow 2800ms ease-in-out infinite alternate;
+        mix-blend-mode: screen;
+      }
+      @keyframes boardGlow {
+        0% { opacity: 0.35; filter: hue-rotate(0deg) saturate(1); }
+        100% { opacity: 0.6; filter: hue-rotate(14deg) saturate(1.2); }
       }
       @media (max-width: 640px) {
         .wrapper {
@@ -823,7 +865,16 @@
           updateHud();
           logCombo(expanded.size, cascadeLevel);
           playSfx(baseMatched.size !== expanded.size ? 'bomb' : 'match', { cascadeLevel, power: expanded.size });
-          try { if (expanded.size >= 10) kickShake(Math.min(12, 4 + expanded.size * 0.12), 200 + Math.min(200, expanded.size * 4)); } catch {}
+          try {
+            if (expanded.size >= 10) {
+              kickShake(Math.min(12, 4 + expanded.size * 0.12), 200 + Math.min(200, expanded.size * 4));
+              pulseZoom(0.05, 220);
+              flashScreen('rgba(255,255,255,0.85)', 120, 0.5);
+              const r = boardRect();
+              addRing(r.width/2, r.height/2, { r0: 16, r1: 160, width: 10, color: 'rgba(244,114,182,0.9)', duration: 240 });
+              playSfx('mega', { cascadeLevel, power: expanded.size });
+            }
+          } catch {}
           await delay(240);          const crossIndexSet = new Set(crossList.map((p) => p.index));
           const filteredBombPlacements = bombPlacements.filter((b) => !crossIndexSet.has(b.index));
           const placements = filteredBombPlacements.concat(crossList);
@@ -880,8 +931,8 @@
           try { kickShake(2.5, 120); } catch {}
         };
         
-        const audio = { ctx: null, bus: null, fxSend: null };
-        const fx = { canvas: null, ctx: null, particles: [], beams: [], rings: [], texts: [], lastResize: 0, shakeEnd: 0, shakeMag: 0 };
+        const audio = { ctx: null, bus: null, fxSend: null, fxDelay: null };
+        const fx = { canvas: null, ctx: null, particles: [], beams: [], rings: [], texts: [], flashes: [], lastResize: 0, shakeEnd: 0, shakeMag: 0, zoomEnd: 0, zoomMag: 0 };
         // Initialize effects once root elements exist
         initFx();
 
@@ -918,10 +969,22 @@
             convolver.buffer = buildImpulse(1.2, 3.2);
             fxSendGain.connect(convolver);
             convolver.connect(busGain);
+            // Ping-pong-ish delay
+            const fxDelay = ctx.createGain();
+            fxDelay.gain.value = 0.16;
+            const delayL = ctx.createDelay(1.0); delayL.delayTime.value = 0.18;
+            const delayR = ctx.createDelay(1.0); delayR.delayTime.value = 0.24;
+            const merger = ctx.createChannelMerger(2);
+            const splitter = ctx.createChannelSplitter(2);
+            fxDelay.connect(splitter);
+            splitter.connect(delayL, 0); splitter.connect(delayR, 1);
+            delayL.connect(merger, 0, 0); delayR.connect(merger, 0, 1);
+            merger.connect(busGain);
             busGain.connect(comp);
             comp.connect(ctx.destination);
             audio.bus = busGain;
             audio.fxSend = fxSendGain;
+            audio.fxDelay = fxDelay;
           } catch {}
         };
 
@@ -953,15 +1016,19 @@
           try {
             const shell = fx.canvas.parentElement;
             const nowMs = performance.now();
+            let dx = 0, dy = 0, scale = 1;
             if (nowMs < fx.shakeEnd) {
               const t = (fx.shakeEnd - nowMs) / 180;
               const mag = fx.shakeMag * Math.max(0, t);
-              const dx = (Math.random() * 2 - 1) * mag;
-              const dy = (Math.random() * 2 - 1) * mag;
-              shell.style.transform = `translate(${dx}px, ${dy}px)`;
-            } else if (shell.style.transform) {
-              shell.style.transform = '';
+              dx = (Math.random() * 2 - 1) * mag;
+              dy = (Math.random() * 2 - 1) * mag;
             }
+            if (nowMs < fx.zoomEnd) {
+              const tz = (fx.zoomEnd - nowMs) / 200;
+              scale = 1 + fx.zoomMag * Math.max(0, tz);
+            }
+            if (dx || dy || scale !== 1) shell.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+            else if (shell.style.transform) shell.style.transform = '';
           } catch {}
           const now = performance.now();
           // beams
@@ -1037,6 +1104,21 @@
             ctx.stroke();
             ctx.restore();
           }
+          // screen flashes
+          const now3 = performance.now();
+          fx.flashes = fx.flashes.filter((f) => now3 < f.end);
+          for (const f of fx.flashes) {
+            const pr = Math.min(1, (now3 - f.start) / f.duration);
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = (1 - pr) * (f.alpha ?? 0.6);
+            const grad = ctx.createRadialGradient(fx.canvas.width/2, fx.canvas.height/2, 0, fx.canvas.width/2, fx.canvas.height/2, Math.max(fx.canvas.width, fx.canvas.height));
+            grad.addColorStop(0, f.color ?? 'rgba(255,255,255,0.8)');
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,fx.canvas.width, fx.canvas.height);
+            ctx.restore();
+          }
           requestAnimationFrame(tickFx);
         }
 
@@ -1064,6 +1146,17 @@
             duration: opts.duration ?? 220,
             end: now + (opts.duration ?? 220),
           });
+        };
+
+        const addTrailSparks = (x1, y1, x2, y2, opts = {}) => {
+          if (!fx.ctx) return;
+          const steps = opts.steps ?? 8;
+          for (let i = 0; i <= steps; i += 1) {
+            const t = i / steps;
+            const x = x1 + (x2 - x1) * t;
+            const y = y1 + (y2 - y1) * t;
+            burstParticles(x, y, { count: 2, speed: 140, life: 0.25, gravity: 200, colors: ['#f0abfc', '#60a5fa', '#fde047'] });
+          }
         };
 
         const burstParticles = (x, y, opts = {}) => {
@@ -1127,6 +1220,17 @@
           fx.shakeEnd = performance.now() + duration;
         };
 
+        const pulseZoom = (magnitude = 0.04, duration = 220) => {
+          fx.zoomMag = magnitude;
+          fx.zoomEnd = performance.now() + duration;
+        };
+
+        const flashScreen = (color = 'rgba(255,255,255,0.9)', duration = 160, alpha = 0.6) => {
+          if (!fx.ctx) return;
+          const now = performance.now();
+          fx.flashes.push({ color, start: now, duration, end: now + duration, alpha });
+        };
+
         const playTone = (freq = 440, duration = 0.08, type = 'sine', gain = 0.05, pan = 0) => {
           if (!audio.ctx) return;
           const ctx = audio.ctx;
@@ -1137,8 +1241,8 @@
           osc.frequency.value = freq;
           g.gain.value = gain;
           const dest = audio.bus ?? ctx.destination;
-          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); }
-          else { osc.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); }
+          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); if (audio.fxDelay) g.connect(audio.fxDelay); }
+          else { osc.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); if (audio.fxDelay) g.connect(audio.fxDelay); }
           const now = ctx.currentTime;
           g.gain.setValueAtTime(gain, now);
           g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -1154,8 +1258,8 @@
           osc.type = type;
           g.gain.value = gain;
           const dest = audio.bus ?? ctx.destination;
-          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); }
-          else { osc.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); }
+          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); if (audio.fxDelay) g.connect(audio.fxDelay); }
+          else { osc.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); if (audio.fxDelay) g.connect(audio.fxDelay); }
           const now = ctx.currentTime;
           osc.frequency.setValueAtTime(f0, now);
           osc.frequency.linearRampToValueAtTime(f1, now + duration * 0.85);
@@ -1179,7 +1283,7 @@
           filt.type = type;
           filt.frequency.value = 800;
           const dest = audio.bus ?? ctx.destination;
-          src.connect(filt); filt.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend);
+          src.connect(filt); filt.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); if (audio.fxDelay) g.connect(audio.fxDelay);
           const now = ctx.currentTime;
           g.gain.setValueAtTime(gain, now);
           g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -1229,6 +1333,13 @@
                 setTimeout(() => playTone(700 + i * 140, 0.05, 'square', 0.04 + boost, (Math.random() * 2 - 1) * 0.2), i * 60);
               }
               break;
+            case 'mega':
+              // layered hit: sub + mid + sparkle
+              playNoise(0.2, 0.08 + boost, 'lowpass');
+              setTimeout(() => playTone(120, 0.22, 'sine', 0.09 + boost, 0), 10);
+              setTimeout(() => sweepTone(1500, 400, 0.18, 'square', 0.05 + boost, 0), 80);
+              setTimeout(() => playTone(1800, 0.06, 'triangle', 0.04 + boost, 0), 170);
+              break;
           }
         };
         
@@ -1255,6 +1366,12 @@
           const otherTypeForOrb = wasOrbA ? target.type : wasOrbB ? origin.type : null;
           
           swapCandies(origin, target);
+          try {
+            const a = cellCenter(origin.index);
+            const b = cellCenter(target.index);
+            addBeam(a.x, a.y, b.x, b.y, { baseWidth: 12, duration: 240 });
+            addTrailSparks(a.x, a.y, b.x, b.y, { steps: 10 });
+          } catch {}
           
           const crossAfterIndex = wasCrossA ? target.index : wasCrossB ? origin.index : null;
           const bombAfterIndex = wasBombA ? target.index : wasBombB ? origin.index : null;
@@ -1263,7 +1380,7 @@
           // Rainbow + Bonus (bomb or cross): apply bonus to 10 random tiles
           const detonateOrbCombo = async (orbIdx, kind, otherIdx) => {
             if (orbIdx == null) return;
-            try { kickShake(10, 300); } catch {}
+            try { kickShake(12, 320); pulseZoom(0.06, 260); flashScreen('rgba(255,255,255,0.95)', 160, 0.6); } catch {}
             const candidates = [];
             for (let i = 0; i < totalCells; i += 1) {
               if (state.board[i].type) candidates.push(i); // only normal candies
@@ -1363,6 +1480,7 @@
               kickShake(Math.min(10, 4 + affected.size * 0.15), 220);
             } catch {}
             playSfx('bomb', { cascadeLevel: state.activeCascade || 1, power: affected.size });
+            try { flashScreen('rgba(255,255,255,0.9)', 140, 0.55); pulseZoom(0.05, 220); } catch {}
             await delay(240);
             affected.forEach((i) => {
               const c = state.board[i];
@@ -1410,6 +1528,7 @@
               kickShake(Math.min(10, 4 + indices.length * 0.1), 220);
             } catch {}
             playSfx('laser', { cascadeLevel: state.activeCascade || 1, power: affected.size });
+            try { flashScreen('rgba(250,204,21,0.85)', 140, 0.5); pulseZoom(0.04, 200); } catch {}
             await delay(260);
             affected.forEach((i) => {
               const c = state.board[i];
@@ -1481,6 +1600,7 @@
               kickShake(9, 240);
             } catch {}
             playSfx('laser', { cascadeLevel: state.activeCascade || 1, power: affected.size });
+            try { flashScreen('rgba(96,165,250,0.9)', 140, 0.5); pulseZoom(0.04, 200); } catch {}
             await delay(240);
             affected.forEach((i) => {
               const c = state.board[i];
