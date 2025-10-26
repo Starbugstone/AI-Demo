@@ -1,6 +1,10 @@
 <template>
-  <div class="sandbox">
-    <div ref="host" class="sandbox-host" />
+  <div class="sandbox" :data-fullscreen="props.fullscreen ? 'true' : null">
+    <div
+      ref="host"
+      class="sandbox-host"
+      :data-fullscreen="props.fullscreen ? 'true' : null"
+    />
   </div>
 </template>
 
@@ -12,6 +16,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  fullscreen: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['loading', 'loaded', 'error'])
@@ -19,6 +27,7 @@ const emit = defineEmits(['loading', 'loaded', 'error'])
 const host = ref(null)
 let ticket = 0
 let activeController = null
+let dprSizer = null
 
 const JS_MIME_TYPES = new Set(['', 'text/javascript', 'application/javascript'])
 
@@ -58,6 +67,131 @@ const clearShadow = () => {
     shadow.removeChild(shadow.firstChild)
   }
 }
+
+// -- DPR-aware canvas sizer (enabled only in fullscreen) ---------------------
+const queryShadowRoot = () => host.value?.shadowRoot ?? null
+
+const updateCanvasResolution = (canvas) => {
+  if (!canvas) return
+  const dpr = Math.max(1, Math.floor((window.devicePixelRatio || 1) * 100) / 100)
+  const rect = canvas.getBoundingClientRect()
+  const w = Math.max(1, Math.round(rect.width * dpr))
+  const h = Math.max(1, Math.round(rect.height * dpr))
+  if (canvas.width !== w) canvas.width = w
+  if (canvas.height !== h) canvas.height = h
+}
+
+const enableDprSizer = () => {
+  const root = queryShadowRoot()
+  if (!root) return
+  if (dprSizer) return
+
+  const originals = new Map()
+
+  const captureOriginal = (canvas) => {
+    if (originals.has(canvas)) return
+    originals.set(canvas, {
+      width: canvas.getAttribute('width'),
+      height: canvas.getAttribute('height'),
+    })
+  }
+
+  const canvases = () => Array.from(root.querySelectorAll('canvas'))
+
+  const refreshAll = () => {
+    canvases().forEach((c) => updateCanvasResolution(c))
+  }
+
+  // Observe host and canvases for size changes
+  const ro = new ResizeObserver(() => refreshAll())
+  ro.observe(host.value)
+  canvases().forEach((c) => ro.observe(c))
+
+  // Track additions/removals of canvas elements
+  const mo = new MutationObserver((mutations) => {
+    let needsRefresh = false
+    for (const m of mutations) {
+      m.addedNodes?.forEach((n) => {
+        if (n.nodeType === 1) {
+          if (n.tagName?.toLowerCase() === 'canvas') {
+            captureOriginal(n)
+            ro.observe(n)
+            needsRefresh = true
+          }
+          n.querySelectorAll?.('canvas')?.forEach((c) => {
+            captureOriginal(c)
+            ro.observe(c)
+            needsRefresh = true
+          })
+        }
+      })
+      m.removedNodes?.forEach((n) => {
+        if (n.nodeType === 1) {
+          if (n.tagName?.toLowerCase() === 'canvas') {
+            ro.unobserve(n)
+            originals.delete(n)
+          }
+          n.querySelectorAll?.('canvas')?.forEach((c) => {
+            ro.unobserve(c)
+            originals.delete(c)
+          })
+        }
+      })
+    }
+    if (needsRefresh) refreshAll()
+  })
+  mo.observe(root, { childList: true, subtree: true })
+
+  const handleResize = () => refreshAll()
+  window.addEventListener('resize', handleResize)
+
+  // Capture originals and do an initial set
+  canvases().forEach(captureOriginal)
+  refreshAll()
+
+  dprSizer = { ro, mo, handleResize, originals }
+
+  // Ensure cleanup with other sandbox resources if possible
+  if (Array.isArray(root.__sandboxCleanup)) {
+    root.__sandboxCleanup.push(() => disableDprSizer())
+  }
+}
+
+const disableDprSizer = () => {
+  if (!dprSizer) return
+  try {
+    dprSizer.ro.disconnect()
+  } catch {}
+  try {
+    dprSizer.mo.disconnect()
+  } catch {}
+  try {
+    window.removeEventListener('resize', dprSizer.handleResize)
+  } catch {}
+  // Restore original width/height attributes
+  try {
+    for (const [canvas, orig] of dprSizer.originals.entries()) {
+      if (!canvas.isConnected) continue
+      if (orig.width == null) canvas.removeAttribute('width')
+      else canvas.setAttribute('width', String(orig.width))
+      if (orig.height == null) canvas.removeAttribute('height')
+      else canvas.setAttribute('height', String(orig.height))
+    }
+  } catch {}
+  dprSizer = null
+}
+
+watch(
+  () => props.fullscreen,
+  (next) => {
+    if (next) {
+      enableDprSizer()
+    } else {
+      disableDprSizer()
+    }
+  },
+  { immediate: false }
+)
 
 const isExternal = (value) =>
   /^([a-z][a-z0-9+\-.]*:|\/\/)/i.test(value) || value.startsWith('data:')
@@ -195,6 +329,30 @@ const injectHtml = async (html, baseUrl, currentTicket) => {
 
   // Reset disposed flag for new project
   target.__sandboxDisposed = false
+
+  // Ensure a small default stylesheet exists for fullscreen sizing
+  // This only affects styles when the shadow host has data-fullscreen="true"
+  const defaultStyle = document.createElement('style')
+  defaultStyle.textContent = `
+    :host([data-fullscreen="true"]) {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    :host([data-fullscreen="true"]) body {
+      margin: 0;
+      min-height: 100%;
+    }
+    /* Expand canvases in fullscreen to fill the sandbox host */
+    :host([data-fullscreen="true"]) canvas {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      display: block;
+    }
+  `
+  target.appendChild(defaultStyle)
 
   const scriptsBucket = []
   const nodes = Array.from(documentFragment.body.childNodes)
@@ -367,6 +525,15 @@ const injectHtml = async (html, baseUrl, currentTicket) => {
   })
 
   dbg('inject:done', { ticket: currentTicket, scripts: scriptsBucket.length })
+
+  // After injection, (re)apply DPR sizer if fullscreen is active
+  if (props.fullscreen) {
+    try {
+      enableDprSizer()
+    } catch (e) {
+      console.warn('[sandbox] dpr sizer enable failed:', e)
+    }
+  }
 }
 
 const loadProject = async (slug, entryPoint, currentTicket) => {
@@ -435,6 +602,8 @@ onBeforeUnmount(() => {
     activeController.abort()
     activeController = null
   }
+  // Ensure DPR sizer is torn down
+  try { disableDprSizer() } catch {}
 })
 </script>
 
@@ -456,8 +625,20 @@ onBeforeUnmount(() => {
   height: 100%;
   display: block;
 }
+
+/* Fullscreen overrides: remove card chrome and padding so the host can truly fill */
+.sandbox[data-fullscreen='true'] {
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  width: 100%;
+  height: 100%;
+}
+
+.sandbox[data-fullscreen='true'] .sandbox-host {
+  width: 100%;
+  height: 100%;
+}
 </style>
-
-
-
-
