@@ -688,6 +688,11 @@
               safety += 1;
             }
             applyCandyStyle(cell, candidate, { animate: true });
+            try {
+              const target = cellCenter(index);
+              const startY = Math.max(-10, target.y - 60 - Math.random() * 30);
+              burstParticles(target.x, startY, { count: 6, speed: 180, life: 0.45, gravity: 360, colors: ['#f472b6','#60a5fa','#34d399','#fde047'] });
+            } catch {}
           }
         };
         
@@ -793,6 +798,13 @@
           state.activeCascade = cascadeLevel;
           state.longestCascade = Math.max(state.longestCascade, cascadeLevel);
           updateHud();
+          try {
+            if (cascadeLevel > 1) {
+              const r = boardRect();
+              addText(r.width / 2, 24, `Cascade x${cascadeLevel}!`, { color: '#f0abfc', size: 26, dy: 40, duration: 900, pop: 0.6 });
+              playSfx('cascade', { cascadeLevel });
+            }
+          } catch {}
           
           expanded.forEach((index) => {
             const cell = state.board[index];
@@ -811,6 +823,7 @@
           updateHud();
           logCombo(expanded.size, cascadeLevel);
           playSfx(baseMatched.size !== expanded.size ? 'bomb' : 'match', { cascadeLevel, power: expanded.size });
+          try { if (expanded.size >= 10) kickShake(Math.min(12, 4 + expanded.size * 0.12), 200 + Math.min(200, expanded.size * 4)); } catch {}
           await delay(240);          const crossIndexSet = new Set(crossList.map((p) => p.index));
           const filteredBombPlacements = bombPlacements.filter((b) => !crossIndexSet.has(b.index));
           const placements = filteredBombPlacements.concat(crossList);
@@ -820,6 +833,20 @@
             if (placementIndexSet.has(index)) {
               const bp = placements.find((p) => p.index === index);
               applySpecialStyle(cell, bp?.special || 'bomb', bp?.type || cell.type);
+              try {
+                const { x, y } = cellCenter(index);
+                if (bp?.special === 'bomb') {
+                  burstParticles(x, y, { count: 26, speed: 260, life: 0.55 });
+                  addRing(x, y, { r0: 8, r1: 100, width: 6, color: 'rgba(248,113,113,0.9)', duration: 220 });
+                } else if (bp?.special === 'orb') {
+                  burstParticles(x, y, { count: 30, speed: 280, life: 0.6, colors: ['#f0abfc','#60a5fa','#34d399','#fde047'] });
+                  addRing(x, y, { r0: 8, r1: 110, width: 6, color: 'rgba(96,165,250,0.9)', duration: 240 });
+                } else if (bp?.special === 'cross') {
+                  burstParticles(x, y, { count: 22, speed: 240, life: 0.5, colors: ['#fde047','#f472b6','#60a5fa'] });
+                  addRing(x, y, { r0: 8, r1: 110, width: 6, color: 'rgba(250,204,21,0.9)', duration: 220 });
+                }
+                playSfx('upgrade');
+              } catch {}
             } else {
               applyCandyStyle(cell, null);
             }
@@ -850,10 +877,11 @@
             first.element.classList.remove('invalid');
             second.element.classList.remove('invalid');
           }, 320);
+          try { kickShake(2.5, 120); } catch {}
         };
         
-        const audio = { ctx: null, bus: null };
-        const fx = { canvas: null, ctx: null, particles: [], beams: [], rings: [], lastResize: 0, shakeEnd: 0, shakeMag: 0 };
+        const audio = { ctx: null, bus: null, fxSend: null };
+        const fx = { canvas: null, ctx: null, particles: [], beams: [], rings: [], texts: [], lastResize: 0, shakeEnd: 0, shakeMag: 0 };
         // Initialize effects once root elements exist
         initFx();
 
@@ -870,9 +898,30 @@
             comp.ratio.value = 12;
             comp.attack.value = 0.003;
             comp.release.value = 0.25;
+            // Simple reverb send
+            const fxSendGain = ctx.createGain();
+            fxSendGain.gain.value = 0.22;
+            const convolver = ctx.createConvolver();
+            const buildImpulse = (seconds = 1.2, decay = 3.2) => {
+              const rate = ctx.sampleRate;
+              const len = Math.floor(rate * seconds);
+              const impulse = ctx.createBuffer(2, len, rate);
+              for (let ch = 0; ch < 2; ch += 1) {
+                const data = impulse.getChannelData(ch);
+                for (let i = 0; i < len; i += 1) {
+                  const t = i / len;
+                  data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, decay);
+                }
+              }
+              return impulse;
+            };
+            convolver.buffer = buildImpulse(1.2, 3.2);
+            fxSendGain.connect(convolver);
+            convolver.connect(busGain);
             busGain.connect(comp);
             comp.connect(ctx.destination);
             audio.bus = busGain;
+            audio.fxSend = fxSendGain;
           } catch {}
         };
 
@@ -953,6 +1002,26 @@
             ctx.fill();
             ctx.restore();
           }
+          // floating texts
+          const nowTxt = performance.now();
+          fx.texts = fx.texts.filter((t) => nowTxt < t.end);
+          for (const t of fx.texts) {
+            const p = Math.min(1, (nowTxt - t.start) / t.duration);
+            const y = t.y - p * t.dy;
+            const x = t.x + p * t.dx;
+            const scale = 1 + (t.pop ?? 0.4) * Math.sin(Math.min(Math.PI, p * Math.PI));
+            ctx.save();
+            ctx.globalAlpha = (1 - p) * (t.alpha ?? 1);
+            ctx.fillStyle = t.color ?? '#f9a8d4';
+            ctx.font = `${t.size ?? 24}px system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeStyle = 'rgba(2,6,23,0.6)';
+            ctx.lineWidth = 3;
+            ctx.strokeText(t.text, x, y);
+            ctx.fillText(t.text, x, y);
+            ctx.restore();
+          }
           // rings
           const now2 = performance.now();
           fx.rings = fx.rings.filter((r) => now2 < r.end);
@@ -1017,6 +1086,24 @@
               last: performance.now(),
             });
           }
+        };
+
+        const addText = (x, y, text, opts = {}) => {
+          if (!fx.ctx) return;
+          const now = performance.now();
+          fx.texts.push({
+            x, y,
+            dx: opts.dx ?? 0,
+            dy: opts.dy ?? 80,
+            text,
+            color: opts.color ?? '#f9a8d4',
+            size: opts.size ?? 24,
+            pop: opts.pop ?? 0.4,
+            alpha: opts.alpha ?? 1,
+            start: now,
+            duration: opts.duration ?? 700,
+            end: now + (opts.duration ?? 700),
+          });
         };
 
         const addRing = (x, y, opts = {}) => {
@@ -1119,11 +1206,22 @@
               if (level >= 3) setTimeout(() => playTone(1100 + Math.random() * 25, 0.06, 'triangle', 0.035 + boost * 0.6, pan * -0.5), 90);
               break;
             case 'bomb':
-              playNoise(0.2, 0.07 + boost * 1.1 + power * 0.05, 'lowpass');
-              setTimeout(() => playTone(90 + power * 40, 0.18, 'sine', 0.08 + boost * 0.6, pan * 0.3), 20);
+              playNoise(0.22, 0.08 + boost * 1.1 + power * 0.06, 'lowpass');
+              setTimeout(() => playTone(90 + power * 40, 0.22, 'sine', 0.09 + boost * 0.7, pan * 0.3), 20);
+              setTimeout(() => sweepTone(300, 90, 0.18, 'sawtooth', 0.03 + power * 0.04, -pan), 40);
               break;
             case 'laser':
               sweepTone(1600, 600, 0.13, 'square', 0.04 + boost, pan);
+              setTimeout(() => playTone(1200, 0.06, 'triangle', 0.03 + boost * 0.5, -pan), 40);
+              break;
+            case 'upgrade':
+              playTone(900, 0.06, 'sine', 0.05 + boost, 0);
+              setTimeout(() => playTone(1200, 0.06, 'triangle', 0.05 + boost, 0), 70);
+              break;
+            case 'cascade':
+              for (let i = 0; i < Math.min(4, level); i += 1) {
+                setTimeout(() => playTone(700 + i * 140, 0.05, 'square', 0.04 + boost, (Math.random() * 2 - 1) * 0.2), i * 60);
+              }
               break;
           }
         };
@@ -1245,7 +1343,7 @@
                 });
               }, 200);
               addRing(sx, sy, { r0: 10, r1: 120, width: 7, color: 'rgba(96,165,250,0.9)', duration: 260 });
-              kickShake(Math.min(8, 3 + indices.length * 0.08), 200);
+              kickShake(Math.min(10, 4 + indices.length * 0.1), 220);
             } catch {}
             playSfx('laser', { cascadeLevel: state.activeCascade || 1, power: affected.size });
             await delay(260);
@@ -1316,7 +1414,7 @@
               addBeam(tx, ty, bx, by, { colorStart: 'rgba(250,204,21,0.95)', colorEnd: 'rgba(96,165,250,0.95)', baseWidth: 10, duration: 220 });
               burstParticles(cx, cy, { count: 28, speed: 280, life: 0.5 });
               addRing(cx, cy, { r0: 10, r1: 120, width: 7, color: 'rgba(250,204,21,0.9)', duration: 220 });
-              kickShake(7, 220);
+              kickShake(9, 240);
             } catch {}
             playSfx('laser', { cascadeLevel: state.activeCascade || 1, power: affected.size });
             await delay(240);
@@ -1411,6 +1509,10 @@
               safety += 1;
             }
             applyCandyStyle(cell, candidate);
+            try {
+              const { x, y } = cellCenter(index);
+              if (Math.random() < 0.08) burstParticles(x, y, { count: 6, speed: 120, life: 0.3, gravity: 200 });
+            } catch {}
             cell.element.addEventListener('click', handleCellSelection);
             cell.element.addEventListener('keydown', (event) => {
               if (event.key === 'Enter' || event.key === ' ') {
