@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cascade Candy Clash</title>
+    <style>
+      :host {
+        font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: #e2e8f0;
+        letter-spacing: 0.01em;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background: transparent;
+      }
+
+      .wrapper {
+        position: relative;
+        display: grid;
+        gap: 1.75rem;
+        padding: 1.8rem;
+        border-radius: 1.6rem;
+        border: 1px solid rgba(244, 114, 182, 0.25);
+        background: radial-gradient(circle at top left, rgba(244, 114, 182, 0.18), rgba(14, 116, 144, 0.12)),
+          rgba(15, 23, 42, 0.86);
+        box-shadow: 0 1.8rem 3.6rem rgba(2, 6, 23, 0.7);
+        overflow: hidden;
+      }
+
+      .wrapper::before {
+        content: "";
+        position: absolute;
+        inset: -40% -30% auto -30%;
+        height: 360px;
+        background: radial-gradient(circle, rgba(190, 242, 100, 0.32), rgba(14, 165, 233, 0));
+        filter: blur(12px);
+        opacity: 0.7;
+        pointer-events: none;
+        animation: pulse 14s ease-in-out infinite;
+      }
+
+      header {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1.4rem;
+        flex-wrap: wrap;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 2.4vw, 2.4rem);
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+
+      header p {
+        margin: 0;
+        color: rgba(203, 213, 225, 0.86);
+        max-width: 32rem;
+        line-height: 1.6;
+      }
+
+      .hud {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.9rem;
+      }
+
+      .stat {
+        position: relative;
+        padding: 0.95rem 1.1rem;
+        border-radius: 1rem;
+        background: linear-gradient(135deg, rgba(15, 118, 110, 0.32), rgba(236, 72, 153, 0.18));
+        border: 1px solid rgba(240, 171, 252, 0.28);
+        box-shadow: inset 0 0 0.75rem rgba(56, 189, 248, 0.16);
+        overflow: hidden;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: rgba(226, 232, 240, 0.72);
+        margin-bottom: 0.35rem;
+      }
+
+      .stat span {
+        font-size: 1.7rem;
+        font-weight: 600;
+        color: #f472b6;
+      }
+
+      .stat .subtle {
+        display: block;
+        margin-top: 0.4rem;
+        font-size: 0.82rem;
+        color: rgba(148, 163, 184, 0.88);
+        letter-spacing: 0.08em;
+      }
+
+      .board-shell {
+        position: relative;
+        z-index: 1;
+        padding: 1.1rem;
+        border-radius: 1.4rem;
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.7), rgba(30, 64, 175, 0.35));
+        border: 1px solid rgba(147, 197, 253, 0.22);
+        box-shadow: inset 0 0 2.2rem rgba(15, 118, 110, 0.24);
+      }
+
+      .board {
+        --cell-size: min(64px, min(12vw, 82px));
+        display: grid;
+        grid-template-columns: repeat(8, var(--cell-size));
+        grid-template-rows: repeat(8, var(--cell-size));
+        gap: 0.55rem;
+        justify-content: center;
+      }
+
+      .candy {
+        position: relative;
+        width: var(--cell-size);
+        height: var(--cell-size);
+        border-radius: 24%;
+        display: grid;
+        place-items: center;
+        font-size: calc(var(--cell-size) * 0.55);
+        cursor: pointer;
+        transition: transform 0.16s ease, filter 0.18s ease, box-shadow 0.18s ease;
+        box-shadow: inset 0 -0.2rem 0.45rem rgba(15, 23, 42, 0.26), 0 0.45rem 1.35rem rgba(2, 6, 23, 0.45);
+        border: 2px solid rgba(15, 23, 42, 0.6);
+      }
+
+      .candy::after {
+        content: "";
+        position: absolute;
+        inset: 18% 24% auto 24%;
+        height: 26%;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.65);
+        filter: blur(3px);
+        opacity: 0.75;
+      }
+
+      .candy.empty {
+        background: rgba(15, 23, 42, 0.45);
+        border-color: rgba(148, 163, 184, 0.25);
+        box-shadow: inset 0 0 0.5rem rgba(30, 58, 138, 0.35);
+        cursor: default;
+      }
+
+      .candy.selected {
+        transform: scale(1.08) rotate(-2deg);
+        filter: brightness(1.25);
+        box-shadow: 0 0.65rem 1.65rem rgba(236, 72, 153, 0.55);
+        border-color: rgba(248, 250, 252, 0.8);
+      }
+
+      .candy.invalid {
+        animation: shake 320ms ease;
+      }
+
+      .candy.clearing {
+        animation: vanish 280ms ease forwards;
+      }
+
+      .candy.spawn {
+        animation: pop 320ms ease;
+      }
+
+      .candy .glyph {
+        position: relative;
+        z-index: 1;
+        filter: drop-shadow(0 0 0.3rem rgba(15, 23, 42, 0.35));
+        transform: translateY(-3%);
+      }
+
+      .feed {
+        position: relative;
+        z-index: 1;
+        padding: 1rem 1.1rem 1.2rem;
+        border-radius: 1.2rem;
+        background: linear-gradient(165deg, rgba(8, 47, 73, 0.65), rgba(147, 51, 234, 0.25));
+        border: 1px solid rgba(129, 140, 248, 0.32);
+      }
+
+      .feed h2 {
+        margin: 0 0 0.6rem;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: rgba(226, 232, 240, 0.8);
+      }
+
+      .feed ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      .feed li {
+        font-size: 0.86rem;
+        color: rgba(191, 219, 254, 0.86);
+        display: flex;
+        justify-content: space-between;
+        gap: 0.7rem;
+        background: rgba(30, 64, 175, 0.24);
+        border-radius: 0.7rem;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: inset 0 0 0.65rem rgba(59, 130, 246, 0.18);
+      }
+
+      .feed li span {
+        font-weight: 600;
+        color: #f9a8d4;
+      }
+
+      footer {
+        position: relative;
+        z-index: 1;
+        color: rgba(203, 213, 225, 0.8);
+        font-size: 0.9rem;
+        line-height: 1.55;
+        display: flex;
+        gap: 1.1rem;
+        flex-wrap: wrap;
+      }
+
+      footer strong {
+        color: #fbcfe8;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: rotate(0deg) scale(1);
+          opacity: 0.65;
+        }
+        45% {
+          transform: rotate(9deg) scale(1.08);
+          opacity: 0.85;
+        }
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        20% {
+          transform: translateX(-6%);
+        }
+        40% {
+          transform: translateX(6%);
+        }
+        60% {
+          transform: translateX(-5%);
+        }
+        80% {
+          transform: translateX(5%);
+        }
+      }
+
+      @keyframes vanish {
+        0% {
+          transform: scale(1) rotate(0deg);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(0.1) rotate(180deg);
+          opacity: 0;
+        }
+      }
+
+      @keyframes pop {
+        0% {
+          transform: scale(0.2);
+        }
+        60% {
+          transform: scale(1.15);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      @media (max-width: 640px) {
+        .wrapper {
+          padding: 1.2rem;
+          border-radius: 1.2rem;
+        }
+
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        header h1 {
+          letter-spacing: 0.18em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper" role="presentation">
+      <header>
+        <div>
+          <h1>Cascade Candy Clash</h1>
+          <p>
+            Charge an 8×8 field of volatile sweets. Swap neighbors to detonate matches, trigger cascades, and hunt for
+            megascore combos while the board continuously refills.
+          </p>
+        </div>
+        <div class="hud">
+          <div class="stat">
+            <strong>Score</strong>
+            <span id="score">0</span>
+            <span class="subtle">+45 per candy &times; cascade multiplier</span>
+          </div>
+          <div class="stat">
+            <strong>Moves</strong>
+            <span id="moves">0</span>
+            <span class="subtle">Only valid swaps count</span>
+          </div>
+          <div class="stat">
+            <strong>Active Cascade</strong>
+            <span id="cascade">0×</span>
+            <span class="subtle">Resets when chain ends</span>
+          </div>
+          <div class="stat">
+            <strong>Peak Chain</strong>
+            <span id="longest">0×</span>
+            <span class="subtle">Personal best this run</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="board-shell">
+        <div class="board" id="candy-board" role="grid" aria-label="Candy grid"></div>
+      </div>
+
+      <div class="feed">
+        <h2>Combo Feed</h2>
+        <ul id="combo-feed" aria-live="polite"></ul>
+      </div>
+
+      <footer>
+        <div>
+          <strong>How to play</strong>
+          <div>Click two adjacent candies to swap. Invalid moves snap back. Match three or more to clear.</div>
+        </div>
+        <div>
+          <strong>Pro tip</strong>
+          <div>Focus on vertical triggers to stack gravitational cascades and build insane multipliers.</div>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      (() => {
+        const root = document.currentScript.getRootNode();
+        const hostDocument = root.host?.ownerDocument || root;
+
+        const boardEl = root.getElementById('candy-board');
+        const scoreEl = root.getElementById('score');
+        const movesEl = root.getElementById('moves');
+        const cascadeEl = root.getElementById('cascade');
+        const longestEl = root.getElementById('longest');
+        const feedEl = root.getElementById('combo-feed');
+
+        const boardSize = 8;
+        const totalCells = boardSize * boardSize;
+        const candyPalette = [
+          {
+            id: 'ember',
+            colors: ['#fb923c', '#f97316'],
+            glow: 'rgba(248, 113, 113, 0.6)',
+            glyph: '🍭',
+          },
+          {
+            id: 'berry',
+            colors: ['#f472b6', '#ec4899'],
+            glow: 'rgba(244, 114, 182, 0.55)',
+            glyph: '🍒',
+          },
+          {
+            id: 'citrus',
+            colors: ['#fde047', '#facc15'],
+            glow: 'rgba(250, 204, 21, 0.45)',
+            glyph: '🍋',
+          },
+          {
+            id: 'aurora',
+            colors: ['#38bdf8', '#6366f1'],
+            glow: 'rgba(59, 130, 246, 0.55)',
+            glyph: '🍬',
+          },
+          {
+            id: 'jade',
+            colors: ['#4ade80', '#22c55e'],
+            glow: 'rgba(34, 197, 94, 0.48)',
+            glyph: '🍏',
+          },
+          {
+            id: 'void',
+            colors: ['#a855f7', '#7c3aed'],
+            glow: 'rgba(168, 85, 247, 0.55)',
+            glyph: '🌌',
+          },
+        ];
+
+        const paletteById = Object.fromEntries(candyPalette.map((candy) => [candy.id, candy]));
+
+        const state = {
+          board: [],
+          score: 0,
+          moves: 0,
+          activeCascade: 0,
+          longestCascade: 0,
+          selected: null,
+          busy: false,
+        };
+
+        const randomCandyId = () => {
+          const index = Math.floor(Math.random() * candyPalette.length);
+          return candyPalette[index].id;
+        };
+
+        const indexToPoint = (index) => ({
+          row: Math.floor(index / boardSize),
+          col: index % boardSize,
+        });
+
+        const pointToIndex = (row, col) => row * boardSize + col;
+
+        const isAdjacent = (indexA, indexB) => {
+          const { row: rowA, col: colA } = indexToPoint(indexA);
+          const { row: rowB, col: colB } = indexToPoint(indexB);
+          const rowDelta = Math.abs(rowA - rowB);
+          const colDelta = Math.abs(colA - colB);
+          return (rowDelta === 1 && colDelta === 0) || (rowDelta === 0 && colDelta === 1);
+        };
+
+        const wouldCreateMatch = (row, col, candidateId) => {
+          // Check horizontal
+          let streak = 1;
+          for (let offset = 1; offset <= 2; offset += 1) {
+            const neighborCol = col - offset;
+            if (neighborCol < 0) break;
+            const neighborType = state.board[pointToIndex(row, neighborCol)]?.type;
+            if (neighborType === candidateId) streak += 1;
+            else break;
+          }
+          if (streak >= 3) return true;
+
+          streak = 1;
+          for (let offset = 1; offset <= 2; offset += 1) {
+            const neighborRow = row - offset;
+            if (neighborRow < 0) break;
+            const neighborType = state.board[pointToIndex(neighborRow, col)]?.type;
+            if (neighborType === candidateId) streak += 1;
+            else break;
+          }
+          return streak >= 3;
+        };
+
+        const applyCandyStyle = (cell, candyId, options = {}) => {
+          const { animate = false } = options;
+          const { element } = cell;
+          element.classList.remove('selected', 'invalid', 'clearing', 'spawn');
+
+          if (!candyId) {
+            cell.type = null;
+            element.classList.add('empty');
+            element.dataset.candy = '';
+            element.style.background = 'rgba(15, 23, 42, 0.5)';
+            element.style.boxShadow = 'inset 0 0 0.5rem rgba(30, 64, 175, 0.35)';
+            element.innerHTML = '';
+            return;
+          }
+
+          const candy = paletteById[candyId];
+          cell.type = candyId;
+          element.classList.remove('empty');
+          element.dataset.candy = candyId;
+          element.style.background = `linear-gradient(135deg, ${candy.colors[0]}, ${candy.colors[1]})`;
+          element.style.boxShadow = `inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.25), 0 0.45rem 1.15rem ${candy.glow}`;
+          element.innerHTML = `<span class="glyph">${candy.glyph}</span>`;
+
+          if (animate) {
+            element.classList.add('spawn');
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                element.classList.remove('spawn');
+              });
+            });
+          }
+        };
+
+        const createCell = (index) => {
+          const cell = {
+            index,
+            type: null,
+            element: hostDocument.createElement('button'),
+          };
+          const { row, col } = indexToPoint(index);
+          cell.element.className = 'candy empty';
+          cell.element.type = 'button';
+          cell.element.dataset.index = String(index);
+          cell.element.setAttribute('aria-label', `Candy at row ${row + 1}, column ${col + 1}`);
+          cell.element.setAttribute('tabindex', '0');
+          boardEl.appendChild(cell.element);
+          state.board.push(cell);
+          return cell;
+        };
+
+        const updateHud = () => {
+          scoreEl.textContent = state.score.toLocaleString();
+          movesEl.textContent = state.moves;
+          cascadeEl.textContent = `${state.activeCascade}×`;
+          longestEl.textContent = `${state.longestCascade}×`;
+        };
+
+        const logCombo = (matchedCount, cascadeLevel) => {
+          if (!feedEl) return;
+          const entry = hostDocument.createElement('li');
+          entry.innerHTML = `<span>${cascadeLevel}×</span> Cleared ${matchedCount} candies`;
+          feedEl.prepend(entry);
+          while (feedEl.childElementCount > 4) {
+            feedEl.lastElementChild?.remove();
+          }
+        };
+
+        const delay = (ms) =>
+          new Promise((resolve) => {
+            setTimeout(resolve, ms);
+          });
+
+        const findMatches = () => {
+          const matched = new Set();
+
+          // Horizontal matches
+          for (let row = 0; row < boardSize; row += 1) {
+            let runStart = 0;
+            for (let col = 1; col <= boardSize; col += 1) {
+              const prevIndex = pointToIndex(row, col - 1);
+              const prevType = state.board[prevIndex].type;
+              const currentType = col < boardSize ? state.board[pointToIndex(row, col)].type : null;
+              if (!prevType || prevType !== currentType) {
+                const runLength = col - runStart;
+                if (prevType && runLength >= 3) {
+                  for (let offset = 0; offset < runLength; offset += 1) {
+                    matched.add(pointToIndex(row, runStart + offset));
+                  }
+                }
+                runStart = col;
+              }
+            }
+          }
+
+          // Vertical matches
+          for (let col = 0; col < boardSize; col += 1) {
+            let runStart = 0;
+            for (let row = 1; row <= boardSize; row += 1) {
+              const prevIndex = pointToIndex(row - 1, col);
+              const prevType = state.board[prevIndex].type;
+              const currentType = row < boardSize ? state.board[pointToIndex(row, col)].type : null;
+              if (!prevType || prevType !== currentType) {
+                const runLength = row - runStart;
+                if (prevType && runLength >= 3) {
+                  for (let offset = 0; offset < runLength; offset += 1) {
+                    matched.add(pointToIndex(runStart + offset, col));
+                  }
+                }
+                runStart = row;
+              }
+            }
+          }
+
+          return matched;
+        };
+
+        const collapseColumns = () => {
+          for (let col = 0; col < boardSize; col += 1) {
+            const survivors = [];
+            for (let row = 0; row < boardSize; row += 1) {
+              const cell = state.board[pointToIndex(row, col)];
+              if (cell.type) {
+                survivors.push(cell.type);
+              }
+            }
+            for (let row = boardSize - 1; row >= 0; row -= 1) {
+              const index = pointToIndex(row, col);
+              const cell = state.board[index];
+              const nextType = survivors.pop() ?? null;
+              if (nextType !== cell.type) {
+                applyCandyStyle(cell, nextType);
+              }
+            }
+          }
+        };
+
+        const refillBoard = () => {
+          for (let index = 0; index < totalCells; index += 1) {
+            const cell = state.board[index];
+            if (cell.type) continue;
+            const { row, col } = indexToPoint(index);
+            let candidate = randomCandyId();
+            let safety = 0;
+            while (wouldCreateMatch(row, col, candidate) && safety < 12) {
+              candidate = randomCandyId();
+              safety += 1;
+            }
+            applyCandyStyle(cell, candidate, { animate: true });
+          }
+        };
+
+        const resolveBoard = async (cascadeLevel) => {
+          const matches = findMatches();
+          if (!matches.size) {
+            if (cascadeLevel === 1) {
+              state.activeCascade = 0;
+              updateHud();
+            }
+            return false;
+          }
+
+          state.activeCascade = cascadeLevel;
+          state.longestCascade = Math.max(state.longestCascade, cascadeLevel);
+          updateHud();
+
+          matches.forEach((index) => {
+            const cell = state.board[index];
+            cell.element.classList.add('clearing');
+          });
+
+          state.score += matches.size * 45 * cascadeLevel;
+          updateHud();
+          logCombo(matches.size, cascadeLevel);
+
+          await delay(240);
+
+          matches.forEach((index) => {
+            const cell = state.board[index];
+            applyCandyStyle(cell, null);
+            cell.element.classList.remove('clearing');
+          });
+
+          await delay(80);
+          collapseColumns();
+          await delay(140);
+          refillBoard();
+          await delay(160);
+
+          await resolveBoard(cascadeLevel + 1);
+          return true;
+        };
+
+        const deselect = () => {
+          if (state.selected) {
+            state.selected.element.classList.remove('selected');
+            state.selected = null;
+          }
+        };
+
+        const flashInvalid = (first, second) => {
+          first.element.classList.add('invalid');
+          second.element.classList.add('invalid');
+          setTimeout(() => {
+            first.element.classList.remove('invalid');
+            second.element.classList.remove('invalid');
+          }, 320);
+        };
+
+        const swapCandies = (cellA, cellB) => {
+          const tempType = cellA.type;
+          applyCandyStyle(cellA, cellB.type);
+          applyCandyStyle(cellB, tempType);
+        };
+
+        const handleCellSelection = async (event) => {
+          event.preventDefault();
+          if (state.busy) return;
+          const target = event.currentTarget;
+          const index = Number(target.dataset.index);
+          const cell = state.board[index];
+          if (!state.selected) {
+            state.selected = cell;
+            cell.element.classList.add('selected');
+            return;
+          }
+
+          if (cell === state.selected) {
+            deselect();
+            return;
+          }
+
+          if (!isAdjacent(cell.index, state.selected.index)) {
+            state.selected.element.classList.remove('selected');
+            state.selected = cell;
+            cell.element.classList.add('selected');
+            return;
+          }
+
+          state.busy = true;
+          const origin = state.selected;
+          origin.element.classList.remove('selected');
+          deselect();
+
+          swapCandies(origin, cell);
+          const hadMatches = await resolveBoard(1);
+          if (!hadMatches) {
+            swapCandies(origin, cell);
+            flashInvalid(origin, cell);
+            state.busy = false;
+            return;
+          }
+
+          state.moves += 1;
+          updateHud();
+          state.busy = false;
+        };
+
+        const bootstrapBoard = () => {
+          for (let index = 0; index < totalCells; index += 1) {
+            const cell = createCell(index);
+            const { row, col } = indexToPoint(index);
+            let candidate = randomCandyId();
+            let safety = 0;
+            while (wouldCreateMatch(row, col, candidate) && safety < 12) {
+              candidate = randomCandyId();
+              safety += 1;
+            }
+            applyCandyStyle(cell, candidate);
+            cell.element.addEventListener('click', handleCellSelection);
+            cell.element.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                handleCellSelection(event);
+              }
+            });
+          }
+
+          // Resolve any incidental matches created by randomness
+          resolveBoard(1).then(() => {
+            state.busy = false;
+          });
+        };
+
+        state.busy = true;
+        bootstrapBoard();
+        updateHud();
+      })();
+    </script>
+  </body>
+</html>

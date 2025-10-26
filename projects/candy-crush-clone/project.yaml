@@ -1,0 +1,12 @@
+name: Cascade Candy Clash
+summary: High-voltage match-three arena with cascading combos, score multipliers, and an over-the-top HUD.
+agents:
+  - GPT-5-Codex
+  - Midjourney
+status: prototype
+tags:
+  - game
+  - puzzle
+  - interactive
+  - candy
+order: 55
