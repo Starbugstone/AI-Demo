@@ -1,0 +1,1624 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pipe Mania: Coolant Cascade</title>
+    <style>
+      :host {
+        font-family: "Russo One", "Bebas Neue", "Segoe UI", sans-serif;
+        color: #e2e8f0;
+        background: transparent;
+        display: block;
+        padding: clamp(1rem, 2vw + 1rem, 2.5rem);
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: transparent;
+      }
+
+      .wrapper {
+        max-width: 1080px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: clamp(1.6rem, 2vw + 1.4rem, 3rem);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #f8fafc;
+      }
+
+      .subtitle {
+        margin: 0.35rem 0 0;
+        color: rgba(148, 163, 184, 0.9);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+      }
+
+      .hud {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.8rem;
+      }
+
+      .stat {
+        border-radius: 1rem;
+        padding: 0.85rem 1rem;
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.65));
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12), 0 16px 36px rgba(2, 8, 23, 0.55);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .stat .label {
+        font-size: 0.72rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(148, 163, 184, 0.75);
+      }
+
+      .stat .value {
+        font-size: 1.4rem;
+        letter-spacing: 0.05em;
+        color: #f8fafc;
+      }
+
+      .timer-bar {
+        position: relative;
+        width: 100%;
+        height: 0.4rem;
+        margin-top: 0.5rem;
+        border-radius: 999px;
+        background: rgba(51, 65, 85, 0.4);
+        overflow: hidden;
+      }
+
+      .timer-bar span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #facc15, #f97316, #ef4444);
+        transform-origin: left center;
+        transition: transform 160ms ease-out;
+      }
+
+      .message {
+        margin: 0;
+        padding: 0.85rem 1rem;
+        border-radius: 0.9rem;
+        background: linear-gradient(140deg, rgba(8, 47, 73, 0.6), rgba(14, 165, 233, 0.1));
+        box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.18);
+        min-height: 3.1rem;
+        display: flex;
+        align-items: center;
+        font-size: 0.95rem;
+        line-height: 1.45;
+      }
+
+      .message[data-tone="success"] {
+        background: linear-gradient(135deg, rgba(22, 163, 74, 0.35), rgba(16, 185, 129, 0.18));
+        box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.4);
+        color: #bbf7d0;
+      }
+
+      .message[data-tone="danger"] {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.35), rgba(190, 24, 93, 0.18));
+        box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.45);
+        color: #fee2e2;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+        gap: 1.25rem;
+        align-items: start;
+      }
+
+      .board-wrap {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 1.25rem;
+        padding: clamp(0.75rem, 1.1vw, 1.1rem);
+        background: radial-gradient(circle at 18% 16%, rgba(56, 189, 248, 0.12), transparent 58%),
+          radial-gradient(circle at 82% 18%, rgba(14, 116, 144, 0.1), transparent 64%),
+          linear-gradient(155deg, rgba(7, 11, 26, 0.95), rgba(10, 18, 34, 0.78));
+        box-shadow: 0 35px 80px rgba(2, 8, 23, 0.72), inset 0 0 0 1px rgba(148, 163, 184, 0.15);
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        border-radius: 0.9rem;
+        background: linear-gradient(150deg, rgba(2, 6, 23, 0.96), rgba(15, 23, 42, 0.92));
+        box-shadow: inset 0 0 60px rgba(59, 130, 246, 0.08);
+      }
+
+      aside.sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .panel {
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(30, 41, 59, 0.55));
+        border-radius: 1.1rem;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: rgba(148, 163, 184, 0.9);
+      }
+
+      .queue {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .queue-item {
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.5rem 0.65rem;
+        border-radius: 0.85rem;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(71, 85, 105, 0.4);
+        transition: border-color 160ms ease, transform 160ms ease;
+      }
+
+      .queue-item.active {
+        border-color: rgba(45, 212, 191, 0.7);
+        background: rgba(15, 118, 110, 0.22);
+        transform: translateY(-2px);
+      }
+
+      .queue-item canvas {
+        width: 72px;
+        height: 72px;
+        background: rgba(7, 11, 24, 0.65);
+        border-radius: 0.7rem;
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+      }
+
+      .queue-item .meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .queue-item .title {
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #e0f2fe;
+      }
+
+      .queue-item .hint {
+        font-size: 0.72rem;
+        color: rgba(148, 163, 184, 0.75);
+        line-height: 1.4;
+      }
+
+      .panel .instructions {
+        font-size: 0.75rem;
+        line-height: 1.5;
+        color: rgba(148, 163, 184, 0.8);
+      }
+
+      .panel-controls {
+        display: grid;
+        gap: 0.65rem;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 0.85rem 1.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 0.7rem;
+        font-weight: 700;
+        cursor: pointer;
+        color: #0f172a;
+        transition: transform 160ms ease, box-shadow 160ms ease;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+        box-shadow: 0 14px 38px rgba(14, 165, 233, 0.35);
+      }
+
+      button.secondary {
+        background: linear-gradient(135deg, #f97316, #ef4444);
+        box-shadow: 0 14px 38px rgba(248, 113, 113, 0.35);
+      }
+
+      .panel-controls button {
+        width: 100%;
+        background: linear-gradient(135deg, rgba(45, 212, 191, 0.65), rgba(14, 165, 233, 0.6));
+        color: #022c22;
+        box-shadow: 0 10px 24px rgba(13, 148, 136, 0.35);
+      }
+
+      .panel-controls button:nth-child(2) {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.7), rgba(56, 189, 248, 0.6));
+        color: #041b33;
+      }
+
+      .panel-controls button:last-child {
+        background: linear-gradient(135deg, rgba(248, 113, 113, 0.75), rgba(244, 63, 94, 0.65));
+        color: #2b0a0f;
+      }
+
+      button:active {
+        transform: translateY(1px) scale(0.99);
+      }
+
+      button:focus-visible {
+        outline: 2px solid rgba(14, 165, 233, 0.75);
+        outline-offset: 3px;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.85rem;
+        justify-content: center;
+        margin-top: 0.5rem;
+      }
+
+      @media (max-width: 960px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        aside.sidebar {
+          order: -1;
+        }
+      }
+
+      @media (max-width: 640px) {
+        :host {
+          padding: 1rem;
+        }
+
+        .queue-item {
+          grid-template-columns: 56px 1fr;
+          padding: 0.45rem 0.55rem;
+        }
+
+        .queue-item canvas {
+          width: 56px;
+          height: 56px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Pipe Mania: Coolant Cascade</h1>
+      <p class="subtitle">Drag queued conduits into place to guide the flooz before the reservoir bursts.</p>
+      </header>
+      <section class="hud" aria-live="polite">
+        <div class="stat">
+          <span class="label">Level</span>
+          <span class="value" id="level">1</span>
+        </div>
+        <div class="stat">
+          <span class="label">Score</span>
+          <span class="value" id="score">0</span>
+        </div>
+        <div class="stat">
+          <span class="label">Reservoir Timer</span>
+          <span class="value" id="timer">--</span>
+          <div class="timer-bar" aria-hidden="true">
+            <span id="timer-progress" style="transform: scaleX(1)"></span>
+          </div>
+        </div>
+        <div class="stat">
+          <span class="label">Flow Integrity</span>
+          <span class="value" id="integrity">0%</span>
+        </div>
+      </section>
+      <p class="message" id="message">
+        A handful of factory pipes are already welded to the grid. Drag the next conduit from the queue onto an empty cell, nudge rotations with right click or the space bar, and decide when to unleash the flooz. Let the timer expire and the reservoir floods on its own.
+      </p>
+      <div class="layout">
+        <div class="board-wrap">
+          <canvas id="board" width="720" height="720">Your browser does not support canvas.</canvas>
+        </div>
+        <aside class="sidebar">
+          <div class="panel">
+            <h2>Upcoming Conduits</h2>
+            <div id="queue" class="queue" aria-live="polite"></div>
+            <p class="instructions">
+              Drag the highlighted piece onto an empty square or left click the board to auto-drop it. Space pivots the tile under your cursor, right click spins it, and Shift + right click scraps a placed pipe but accelerates the countdown.
+            </p>
+          </div>
+          <div class="panel panel-controls">
+            <button id="rotate-left" type="button">Rotate Piece (CCW)</button>
+            <button id="rotate-right" type="button">Rotate Piece (CW)</button>
+            <button id="scrap-piece" type="button">Scrap Piece (-2s)</button>
+          </div>
+        </aside>
+      </div>
+      <div class="controls">
+        <button class="primary" id="force-flow" type="button">Water Now</button>
+        <button class="secondary" id="new-level" type="button">Reset Grid</button>
+      </div>
+    </div>
+    <script>
+      (function () {
+        const root = document.currentScript.getRootNode();
+        if (root.__pipeCascadeCleanup) {
+          root.__pipeCascadeCleanup.forEach((fn) => {
+            try {
+              fn();
+            } catch (error) {
+              console.error(error);
+            }
+          });
+        }
+        const cleanupCallbacks = [];
+        root.__pipeCascadeCleanup = cleanupCallbacks;
+        const registerCleanup = (fn) => cleanupCallbacks.push(fn);
+
+        const canvas = root.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        const levelEl = root.getElementById('level');
+        const scoreEl = root.getElementById('score');
+        const timerEl = root.getElementById('timer');
+        const timerProgressEl = root.getElementById('timer-progress');
+        const integrityEl = root.getElementById('integrity');
+        const messageEl = root.getElementById('message');
+        const queueEl = root.getElementById('queue');
+        const rotateLeftBtn = root.getElementById('rotate-left');
+        const rotateRightBtn = root.getElementById('rotate-right');
+        const scrapBtn = root.getElementById('scrap-piece');
+        const forceButton = root.getElementById('force-flow');
+        const resetButton = root.getElementById('new-level');
+        const boardWrap = root.querySelector('.board-wrap');
+
+        const DIRS = [
+          { dx: 0, dy: -1, bit: 1, oppositeBit: 4 },
+          { dx: 1, dy: 0, bit: 2, oppositeBit: 8 },
+          { dx: 0, dy: 1, bit: 4, oppositeBit: 1 },
+          { dx: -1, dy: 0, bit: 8, oppositeBit: 2 },
+        ];
+
+        const PIECES = [
+          { type: 'straight', baseMask: 1 | 4, label: 'Line' },
+          { type: 'straight', baseMask: 2 | 8, label: 'Line' },
+          { type: 'corner', baseMask: 1 | 2, label: 'Corner' },
+          { type: 'corner', baseMask: 2 | 4, label: 'Corner' },
+          { type: 'corner', baseMask: 4 | 8, label: 'Corner' },
+          { type: 'corner', baseMask: 8 | 1, label: 'Corner' },
+          { type: 'tee', baseMask: 1 | 2 | 4, label: 'T-Joint' },
+          { type: 'tee', baseMask: 2 | 4 | 8, label: 'T-Joint' },
+          { type: 'tee', baseMask: 1 | 4 | 8, label: 'T-Joint' },
+          { type: 'tee', baseMask: 1 | 2 | 8, label: 'T-Joint' },
+          { type: 'cross', baseMask: 1 | 2 | 4 | 8, label: 'Cross' },
+          { type: 'cap', baseMask: 2, label: 'Cap' },
+          { type: 'cap', baseMask: 8, label: 'Cap' },
+          { type: 'cap', baseMask: 1, label: 'Cap' },
+          { type: 'cap', baseMask: 4, label: 'Cap' },
+        ];
+
+        const LEVEL_CONFIGS = [
+          {
+            name: 'Calibration Run',
+            gridSize: 7,
+            initialCountdown: 60,
+            unlockedTypes: ['straight', 'corner'],
+            verticalVariance: 1,
+            lockedSpacing: 4,
+            prefillChance: 0.25,
+            blockerCount: 1,
+            goalVariance: 1,
+            intro: 'Calibration run online. Guide a simple flooz stream with straights and elbows before the reservoir nudges pressure.',
+            failureFloor: 24,
+            failurePenalty: 10,
+          },
+          {
+            name: 'Distributor Feed',
+            gridSize: 8,
+            initialCountdown: 55,
+            unlockedTypes: ['straight', 'corner', 'tee'],
+            verticalVariance: 2,
+            lockedSpacing: 5,
+            prefillChance: 0.22,
+            blockerCount: 2,
+            goalVariance: 2,
+            intro: 'Distributor feed engaged. T-joints unlock new split optionsâ€”use them to weave around maintenance plates.',
+            failureFloor: 24,
+            failurePenalty: 12,
+          },
+          {
+            name: 'Pressure Crossroads',
+            gridSize: 9,
+            initialCountdown: 50,
+            unlockedTypes: ['straight', 'corner', 'tee', 'cross', 'cap'],
+            verticalVariance: 3,
+            lockedSpacing: 5,
+            prefillChance: 0.18,
+            blockerCount: 3,
+            goalVariance: 3,
+            intro: 'Full pressure lattice online. Cross-junctions and end caps join the toolsetâ€”stabilize before the next wave arrives.',
+            failureFloor: 22,
+            failurePenalty: 14,
+          },
+        ];
+
+        const TYPE_LABELS = {
+          straight: 'Straight',
+          corner: 'Corner',
+          tee: 'T-Joint',
+          cross: 'Cross',
+          cap: 'End Cap',
+        };
+
+        const QUEUE_SIZE = 5;
+        const dpr = globalThis.devicePixelRatio || 1;
+
+        const state = {
+          gridSize: 9,
+          board: [],
+          queue: [],
+          start: null,
+          goal: null,
+          level: 1,
+          score: 0,
+          integrity: 0,
+          countdownRemaining: 22,
+          timerId: null,
+          pendingTimeouts: [],
+          phase: 'build',
+          flowActive: false,
+          failureCell: null,
+          lastFailureReason: '',
+          shimmerSeed: Math.random() * 360,
+          animationFrame: null,
+          targetPathLength: 12,
+          scrapPenalty: 2,
+          initialCountdown: 22,
+          currentConfig: null,
+          activeUnlockedTypes: [],
+          hoverCell: null,
+          focusCell: null,
+          draggingPiece: null,
+        };
+
+        function randomInt(max) {
+          return Math.floor(Math.random() * max);
+        }
+
+        function clamp(value, min, max) {
+          return Math.max(min, Math.min(max, value));
+        }
+
+        function typeLabel(type) {
+          return TYPE_LABELS[type] || type;
+        }
+
+        function getLevelConfig(level) {
+          const index = Math.min(level - 1, LEVEL_CONFIGS.length - 1);
+          return LEVEL_CONFIGS[index];
+        }
+
+        function getAvailablePieces() {
+          if (!state.activeUnlockedTypes.length) return PIECES;
+          return PIECES.filter((piece) => state.activeUnlockedTypes.includes(piece.type));
+        }
+
+        function keyFor(x, y) {
+          return `${x},${y}`;
+        }
+
+        function addConnector(map, x, y, bit) {
+          const key = keyFor(x, y);
+          if (!map.has(key)) {
+            map.set(key, new Set());
+          }
+          map.get(key).add(bit);
+        }
+
+        function connectorsToMask(connectors) {
+          let mask = 0;
+          connectors.forEach((bit) => {
+            mask |= bit;
+          });
+          return mask;
+        }
+
+        function findPieceForMask(mask) {
+          for (const piece of PIECES) {
+            for (let rotation = 0; rotation < 4; rotation += 1) {
+              if (rotateMask(piece.baseMask, rotation) === mask) {
+                return { piece, rotation };
+              }
+            }
+          }
+          return null;
+        }
+
+        function setHoverCell(cell) {
+          const normalized = cell
+            ? { x: Math.max(0, Math.min(state.gridSize - 1, cell.x)), y: Math.max(0, Math.min(state.gridSize - 1, cell.y)) }
+            : null;
+          const prev = state.hoverCell;
+          if (
+            (prev && normalized && prev.x === normalized.x && prev.y === normalized.y) ||
+            (!prev && !normalized)
+          ) {
+            return;
+          }
+          state.hoverCell = normalized;
+          if (state.board && state.board.length) {
+            drawBoard();
+          }
+        }
+
+        function setFocusCell(cell) {
+          const normalized = cell
+            ? { x: Math.max(0, Math.min(state.gridSize - 1, cell.x)), y: Math.max(0, Math.min(state.gridSize - 1, cell.y)) }
+            : null;
+          const prev = state.focusCell;
+          if (
+            (prev && normalized && prev.x === normalized.x && prev.y === normalized.y) ||
+            (!prev && !normalized)
+          ) {
+            return;
+          }
+          state.focusCell = normalized;
+          if (state.board && state.board.length) {
+            drawBoard();
+          }
+        }
+
+        function pointerEventToCell(event) {
+          const rect = canvas.getBoundingClientRect();
+          const tileSize = rect.width / state.gridSize;
+          const rawX = (event.clientX - rect.left) / tileSize;
+          const rawY = (event.clientY - rect.top) / tileSize;
+          const x = Math.floor(rawX);
+          const y = Math.floor(rawY);
+          const inBounds = x >= 0 && x < state.gridSize && y >= 0 && y < state.gridSize;
+          return {
+            cell: inBounds ? { x, y } : null,
+            inBounds,
+          };
+        }
+
+        function updateHoverFromPointer(event) {
+          const { cell } = pointerEventToCell(event);
+          if (cell) {
+            setHoverCell(cell);
+          } else if (!state.draggingPiece) {
+            setHoverCell(null);
+          }
+        }
+
+        function clearDragState(redrawQueue = true) {
+          queueEl.classList.remove('dragging');
+          state.draggingPiece = null;
+          if (redrawQueue) {
+            drawQueue();
+          }
+        }
+
+        function beginQueueDrag(index, event) {
+          if (event.button !== undefined && event.button !== 0) return;
+          if (state.phase !== 'build') return;
+          if (index !== 0) {
+            setMessage('Only the next conduit can be deployed right now.', 'info');
+            return;
+          }
+          const piece = state.queue[index];
+          if (!piece) return;
+          event.preventDefault();
+          state.draggingPiece = {
+            queueIndex: index,
+            piece: { ...piece },
+            pointerId: event.pointerId,
+          };
+          queueEl.classList.add('dragging');
+          setHoverCell(null);
+        }
+
+        function completeQueueDrag(event) {
+          const drag = state.draggingPiece;
+          if (!drag) return;
+          const { cell } = pointerEventToCell(event);
+          if (cell && !state.board[cell.y][cell.x]) {
+            const placed = placeTile(cell.x, cell.y, {
+              pieceOverride: drag.piece,
+              queueIndex: drag.queueIndex,
+              fromDrag: true,
+            });
+            if (placed) {
+              setFocusCell(cell);
+              clearDragState(false);
+              return;
+            }
+          } else if (cell && state.board[cell.y][cell.x]) {
+            setMessage('That slot already contains a conduit.', 'info');
+          }
+          clearDragState();
+          setHoverCell(null);
+        }
+
+        function applySegment(from, dir, connectorsMap, order) {
+          if (!(from.x === state.start.x && from.y === state.start.y)) {
+            addConnector(connectorsMap, from.x, from.y, dir.bit);
+          }
+          const next = { x: from.x + dir.dx, y: from.y + dir.dy };
+          addConnector(connectorsMap, next.x, next.y, dir.oppositeBit);
+          const last = order[order.length - 1];
+          if (!last || last.x !== next.x || last.y !== next.y) {
+            order.push({ x: next.x, y: next.y });
+          }
+          return next;
+        }
+
+        function generatePathLayout(config) {
+          const connectorsMap = new Map();
+          const order = [];
+          let cursor = { x: state.start.x, y: state.start.y };
+          let currentY = cursor.y;
+          const variance = config.verticalVariance ?? 0;
+          const minY = 1;
+          const maxY = state.gridSize - 2;
+          for (let targetX = cursor.x + 1; targetX <= state.goal.x; targetX += 1) {
+            const dirEast = DIRS[1];
+            cursor = applySegment(cursor, dirEast, connectorsMap, order);
+            currentY = cursor.y;
+            if (targetX === state.goal.x) continue;
+            if (variance <= 0) continue;
+            const offset = randomInt(variance * 2 + 1) - variance;
+            const nextY = clamp(currentY + offset, minY, maxY);
+            while (currentY !== nextY) {
+              const dir = currentY < nextY ? DIRS[2] : DIRS[0];
+              cursor = applySegment(cursor, dir, connectorsMap, order);
+              currentY = cursor.y;
+            }
+          }
+          return { connectorsMap, order };
+        }
+
+        function rotateMask(mask, rotation) {
+          let result = mask;
+          for (let i = 0; i < rotation; i += 1) {
+            let next = 0;
+            if (result & 1) next |= 2;
+            if (result & 2) next |= 4;
+            if (result & 4) next |= 8;
+            if (result & 8) next |= 1;
+            result = next;
+          }
+          return result;
+        }
+
+        function bitsFromMask(mask) {
+          const bits = [];
+          if (mask & 1) bits.push(1);
+          if (mask & 2) bits.push(2);
+          if (mask & 4) bits.push(4);
+          if (mask & 8) bits.push(8);
+          return bits;
+        }
+
+        function tileMask(tile) {
+          if (!tile) return 0;
+          return rotateMask(tile.baseMask, tile.rotation % 4);
+        }
+
+        function createTile(piece, overrides = {}) {
+          return {
+            type: piece.type,
+            baseMask: piece.baseMask,
+            rotation: overrides.rotation ?? piece.rotation ?? 0,
+            locked: overrides.locked ?? false,
+            wetProgress: overrides.wetProgress ?? 0,
+            pulse: overrides.pulse ?? 0,
+            special: overrides.special ?? null,
+          };
+        }
+
+        function pushTimeout(fn, delay) {
+          const id = setTimeout(() => {
+            state.pendingTimeouts = state.pendingTimeouts.filter((stored) => stored !== id);
+            fn();
+          }, delay);
+          state.pendingTimeouts.push(id);
+          return id;
+        }
+
+        function clearPendingTimeouts() {
+          state.pendingTimeouts.forEach((id) => clearTimeout(id));
+          state.pendingTimeouts = [];
+        }
+
+        function stopCountdown() {
+          if (state.timerId !== null) {
+            clearInterval(state.timerId);
+            state.timerId = null;
+          }
+        }
+
+        function setMessage(text, tone = 'info') {
+          messageEl.textContent = text;
+          messageEl.dataset.tone = tone;
+        }
+
+        function adjustCountdown(amount) {
+          state.countdownRemaining = Math.max(0, Math.round(state.countdownRemaining + amount));
+          updateHud();
+        }
+
+        function updateHud() {
+          levelEl.textContent = state.level;
+          scoreEl.textContent = state.score;
+          integrityEl.textContent = `${Math.round(state.integrity * 100)}%`;
+          if (state.phase === 'flow') {
+            timerEl.textContent = 'Flowing';
+            timerProgressEl.style.transform = 'scaleX(0)';
+          } else if (state.phase === 'win') {
+            timerEl.textContent = 'Stabilized';
+            timerProgressEl.style.transform = 'scaleX(0)';
+          } else {
+            timerEl.textContent = `${state.countdownRemaining}s`;
+            const normalized = Math.min(1, Math.max(0, state.countdownRemaining / state.initialCountdown));
+            timerProgressEl.style.transform = `scaleX(${normalized})`;
+          }
+        }
+
+        function resetWetness() {
+          for (let y = 0; y < state.gridSize; y += 1) {
+            for (let x = 0; x < state.gridSize; x += 1) {
+              const tile = state.board[y][x];
+              if (!tile) continue;
+              tile.wetProgress = 0;
+            }
+          }
+        }
+
+        function clearFlowState() {
+          state.flowActive = false;
+          state.failureCell = null;
+          state.lastFailureReason = '';
+          resetWetness();
+        }
+
+        function drawTileInContext(context, tile, x, y, size, timestamp, opts = {}) {
+          const highlightFailure = opts.failureMatch ?? false;
+          const hasTile = Boolean(tile);
+          const baseGradient = context.createLinearGradient(x, y, x, y + size);
+          baseGradient.addColorStop(0, hasTile ? 'rgba(26, 41, 68, 0.96)' : 'rgba(11, 18, 34, 0.88)');
+          baseGradient.addColorStop(1, hasTile ? 'rgba(14, 22, 39, 0.88)' : 'rgba(6, 12, 24, 0.82)');
+          context.fillStyle = baseGradient;
+          context.fillRect(x, y, size, size);
+
+          const sheen = context.createLinearGradient(x, y, x + size, y);
+          sheen.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
+          sheen.addColorStop(0.4, 'rgba(255, 255, 255, 0)');
+          sheen.addColorStop(1, 'rgba(255, 255, 255, 0.08)');
+          context.fillStyle = sheen;
+          context.fillRect(x, y, size, size);
+
+          context.strokeStyle = hasTile ? 'rgba(148, 163, 184, 0.16)' : 'rgba(71, 85, 105, 0.2)';
+          context.lineWidth = 1;
+          context.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+
+          if (!tile) {
+            if (highlightFailure) {
+              context.strokeStyle = 'rgba(248, 113, 113, 0.82)';
+              context.lineWidth = 2.5;
+              context.strokeRect(x + 2, y + 2, size - 4, size - 4);
+            }
+            return;
+          }
+
+          const connectors = bitsFromMask(tileMask(tile));
+          const cx = x + size / 2;
+          const cy = y + size / 2;
+          const radius = size * 0.2;
+          const shimmer = Math.sin((timestamp / 220 + (x + y) * 0.08 + state.shimmerSeed) % (Math.PI * 2));
+          const wetOuter = `hsla(188, 84%, ${55 + shimmer * 6}%, 1)`;
+          const wetInner = 'hsla(190, 100%, 92%, 0.95)';
+          const idleOuter = 'hsla(195, 78%, 64%, 1)';
+          const idleInner = 'hsla(203, 52%, 90%, 0.88)';
+          const lockedOuter = 'hsla(45, 96%, 60%, 1)';
+          const lockedInner = 'hsla(48, 96%, 88%, 0.92)';
+          const failureOuter = 'hsla(6, 82%, 64%, 1)';
+          const failureInner = 'hsla(6, 95%, 90%, 0.92)';
+          const outerColor =
+            highlightFailure || tile.special === 'failure'
+              ? failureOuter
+              : tile.special
+                ? lockedOuter
+                : tile.wetProgress > 0
+                  ? wetOuter
+                  : idleOuter;
+          const innerColor =
+            highlightFailure || tile.special === 'failure'
+              ? failureInner
+              : tile.special
+                ? lockedInner
+                : tile.wetProgress > 0
+                  ? wetInner
+                  : idleInner;
+
+          const panelGradient = context.createLinearGradient(x, y, x, y + size);
+          panelGradient.addColorStop(0, 'rgba(12, 21, 36, 0.92)');
+          panelGradient.addColorStop(1, 'rgba(6, 12, 24, 0.82)');
+          context.fillStyle = panelGradient;
+          context.fillRect(x + 1.2, y + 1.2, size - 2.4, size - 2.4);
+          context.strokeStyle = 'rgba(9, 14, 26, 0.7)';
+          context.lineWidth = 1.4;
+          context.strokeRect(x + 1.2, y + 1.2, size - 2.4, size - 2.4);
+
+          if (tile.pulse > 0 && !opts.skipPulseFade) {
+            const gradient = context.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius * 3.4);
+            gradient.addColorStop(0, 'rgba(94, 234, 212, 0.35)');
+            gradient.addColorStop(1, 'rgba(34, 211, 238, 0)');
+            context.fillStyle = gradient;
+            context.fillRect(x, y, size, size);
+            tile.pulse = Math.max(0, tile.pulse - 0.035);
+          } else if (!opts.skipPulseFade && tile.pulse > 0) {
+            tile.pulse = Math.max(0, tile.pulse - 0.035);
+          }
+
+          context.save();
+          context.lineCap = 'round';
+          context.lineJoin = 'round';
+          connectors.forEach((bit) => {
+            const dir = DIRS.find((entry) => entry.bit === bit);
+            if (!dir) return;
+            const length = size / 2 - radius;
+            const startX = cx + dir.dx * (radius * 0.3);
+            const startY = cy + dir.dy * (radius * 0.3);
+            const endX = cx + dir.dx * length;
+            const endY = cy + dir.dy * length;
+
+            context.shadowColor = highlightFailure ? 'rgba(248, 113, 113, 0.45)' : 'rgba(14, 165, 233, 0.38)';
+            context.shadowBlur = size * 0.08;
+            context.strokeStyle = outerColor;
+            context.lineWidth = size * 0.32;
+            context.beginPath();
+            context.moveTo(startX, startY);
+            context.lineTo(endX, endY);
+            context.stroke();
+
+            context.shadowBlur = 0;
+            context.strokeStyle = innerColor;
+            context.lineWidth = size * 0.2;
+            context.beginPath();
+            context.moveTo(startX, startY);
+            context.lineTo(endX, endY);
+            context.stroke();
+
+            context.strokeStyle = 'rgba(255, 255, 255, 0.58)';
+            context.globalAlpha = 0.75;
+            context.lineWidth = size * 0.08;
+            const highlightStartX = startX - dir.dy * size * 0.04;
+            const highlightStartY = startY + dir.dx * size * 0.04;
+            const highlightEndX = endX - dir.dy * size * 0.04;
+            const highlightEndY = endY + dir.dx * size * 0.04;
+            context.beginPath();
+            context.moveTo(highlightStartX, highlightStartY);
+            context.lineTo(highlightEndX, highlightEndY);
+            context.stroke();
+            context.globalAlpha = 1;
+          });
+          context.restore();
+
+          const coreRadius = radius * (1.05 + tile.wetProgress * 0.28);
+          const coreGradient = context.createRadialGradient(
+            cx - radius * 0.25,
+            cy - radius * 0.25,
+            radius * 0.45,
+            cx,
+            cy,
+            coreRadius
+          );
+          coreGradient.addColorStop(0, highlightFailure ? 'rgba(254, 226, 226, 0.95)' : 'rgba(224, 242, 254, 0.96)');
+          coreGradient.addColorStop(
+            1,
+            highlightFailure ? 'rgba(248, 113, 113, 0.82)' : tile.special ? 'rgba(250, 204, 21, 0.75)' : 'rgba(56, 189, 248, 0.6)'
+          );
+          context.fillStyle = coreGradient;
+          context.beginPath();
+          context.arc(cx, cy, coreRadius, 0, Math.PI * 2);
+          context.fill();
+
+          if (tile.special === 'start') {
+            context.fillStyle = 'rgba(249, 115, 22, 0.95)';
+            context.beginPath();
+            context.arc(cx, cy, radius * 1.4, 0, Math.PI * 2);
+            context.fill();
+            context.fillStyle = 'rgba(255, 247, 237, 0.92)';
+            context.beginPath();
+            context.moveTo(cx - radius * 0.6, cy - radius * 0.9);
+            context.lineTo(cx - radius * 0.6, cy + radius * 0.9);
+            context.lineTo(cx + radius * 0.9, cy);
+            context.closePath();
+            context.fill();
+          } else if (tile.special === 'goal') {
+            context.fillStyle = 'rgba(16, 185, 129, 0.95)';
+            if (typeof context.roundRect === 'function') {
+              context.beginPath();
+              context.roundRect(cx - radius * 0.8, cy - radius * 1.2, radius * 1.6, radius * 2.4, radius * 0.5);
+              context.fill();
+            } else {
+              context.fillRect(cx - radius * 0.8, cy - radius * 1.2, radius * 1.6, radius * 2.4);
+            }
+            context.fillStyle = 'rgba(240, 253, 244, 0.92)';
+            context.beginPath();
+            context.arc(cx, cy, radius * 0.6, 0, Math.PI * 2);
+            context.fill();
+          }
+        }
+
+        function drawBoard(timestamp = performance.now()) {
+          if (!state.board || !state.board.length) return;
+          const rect = canvas.getBoundingClientRect();
+          const width = rect.width;
+          const height = rect.height;
+          ctx.clearRect(0, 0, width, height);
+          const tileSize = width / state.gridSize;
+          const hoverCell = state.hoverCell;
+          const focusCell = state.focusCell;
+          for (let y = 0; y < state.gridSize; y += 1) {
+            for (let x = 0; x < state.gridSize; x += 1) {
+              const tile = state.board[y][x];
+              const failureMatch = state.failureCell && state.failureCell.x === x && state.failureCell.y === y;
+              drawTileInContext(ctx, tile, x * tileSize, y * tileSize, tileSize, timestamp, { failureMatch });
+            }
+          }
+          if (state.phase === 'build') {
+            if (hoverCell) {
+              const { x, y } = hoverCell;
+              if (x >= 0 && x < state.gridSize && y >= 0 && y < state.gridSize) {
+                const hoverX = x * tileSize;
+                const hoverY = y * tileSize;
+                const empty = !state.board[y][x];
+                ctx.save();
+                if (empty) {
+                  ctx.fillStyle = state.draggingPiece ? 'rgba(56, 189, 248, 0.18)' : 'rgba(148, 163, 184, 0.08)';
+                  ctx.fillRect(hoverX + 2, hoverY + 2, tileSize - 4, tileSize - 4);
+                  ctx.strokeStyle = state.draggingPiece ? 'rgba(56, 189, 248, 0.6)' : 'rgba(148, 163, 184, 0.45)';
+                  ctx.lineWidth = 2;
+                  ctx.strokeRect(hoverX + 2, hoverY + 2, tileSize - 4, tileSize - 4);
+                } else {
+                  ctx.strokeStyle = 'rgba(251, 191, 36, 0.72)';
+                  ctx.lineWidth = 2.6;
+                  ctx.strokeRect(hoverX + 3, hoverY + 3, tileSize - 6, tileSize - 6);
+                }
+                ctx.restore();
+              }
+            }
+            if (focusCell) {
+              const same =
+                hoverCell && focusCell.x === hoverCell.x && focusCell.y === hoverCell.y;
+              if (!same) {
+                const { x, y } = focusCell;
+                if (x >= 0 && x < state.gridSize && y >= 0 && y < state.gridSize) {
+                  const focusX = x * tileSize;
+                  const focusY = y * tileSize;
+                  ctx.save();
+                  ctx.strokeStyle = 'rgba(165, 180, 252, 0.8)';
+                  ctx.lineWidth = 2.2;
+                  ctx.strokeRect(focusX + 4, focusY + 4, tileSize - 8, tileSize - 8);
+                  ctx.restore();
+                }
+              }
+            }
+          }
+          ctx.strokeStyle = 'rgba(15, 118, 110, 0.35)';
+          ctx.lineWidth = 1;
+          for (let i = 1; i < state.gridSize; i += 1) {
+            const pos = i * tileSize;
+            ctx.beginPath();
+            ctx.moveTo(pos, 0);
+            ctx.lineTo(pos, height);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, pos);
+            ctx.lineTo(width, pos);
+            ctx.stroke();
+          }
+        }
+
+        function drawQueue() {
+          queueEl.innerHTML = '';
+          queueEl.classList.toggle('dragging', Boolean(state.draggingPiece));
+          const now = performance.now();
+          state.queue.forEach((piece, index) => {
+            const item = document.createElement('div');
+            item.className = 'queue-item';
+            if (index === 0) item.classList.add('active');
+            if (index === 0) item.classList.add('draggable');
+            if (state.draggingPiece && state.draggingPiece.queueIndex === index) {
+              item.classList.add('in-drag');
+            }
+            const preview = document.createElement('canvas');
+            preview.width = 72;
+            preview.height = 72;
+            const context = preview.getContext('2d');
+            const tempTile = createTile(piece);
+            drawTileInContext(context, tempTile, 6, 6, 60, now, { skipPulseFade: true });
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+            const title = document.createElement('span');
+            title.className = 'title';
+            title.textContent = piece.label;
+            const hint = document.createElement('span');
+            hint.className = 'hint';
+            hint.textContent = index === 0 ? 'Drag to the grid or click an empty slot.' : 'On deck';
+            meta.appendChild(title);
+            meta.appendChild(hint);
+            item.appendChild(preview);
+            item.appendChild(meta);
+            if (index === 0) {
+              item.style.touchAction = 'none';
+              item.addEventListener('pointerdown', (event) => beginQueueDrag(index, event));
+            }
+            queueEl.appendChild(item);
+          });
+        }
+
+        function refillQueue() {
+          while (state.queue.length < QUEUE_SIZE) {
+            const pool = getAvailablePieces();
+            if (!pool.length) break;
+            const template = pool[randomInt(pool.length)];
+            const rotation = randomInt(4);
+            state.queue.push({ ...template, rotation });
+          }
+          drawQueue();
+        }
+
+        function resizeCanvas() {
+          const rect = boardWrap.getBoundingClientRect();
+          canvas.width = rect.width * dpr;
+          canvas.height = rect.height * dpr;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          drawBoard();
+        }
+
+        function traceChainForIntegrity() {
+          if (!state.start) return { length: 0, complete: false };
+          let current = { x: state.start.x, y: state.start.y };
+          let incoming = 8;
+          const visited = new Set();
+          let length = 0;
+          while (true) {
+            const tile = state.board[current.y][current.x];
+            if (!tile) break;
+            const connectors = bitsFromMask(tileMask(tile));
+            if (!connectors.includes(incoming)) break;
+            length += 1;
+            if (current.x === state.goal.x && current.y === state.goal.y) {
+              return { length, complete: true };
+            }
+            const outgoing = connectors.filter((bit) => bit !== incoming);
+            if (outgoing.length !== 1) break;
+            const dir = DIRS.find((entry) => entry.bit === outgoing[0]);
+            if (!dir) break;
+            const nx = current.x + dir.dx;
+            const ny = current.y + dir.dy;
+            if (nx < 0 || nx >= state.gridSize || ny < 0 || ny >= state.gridSize) break;
+            const key = `${nx},${ny},${dir.oppositeBit}`;
+            if (visited.has(key)) break;
+            const nextTile = state.board[ny][nx];
+            if (!nextTile) {
+              length += 0.25;
+              break;
+            }
+            visited.add(key);
+            current = { x: nx, y: ny };
+            incoming = dir.oppositeBit;
+          }
+          return { length, complete: false };
+        }
+
+        function updateIntegrity() {
+          const chain = traceChainForIntegrity();
+          const ratio = state.targetPathLength ? Math.min(1, chain.length / state.targetPathLength) : 0;
+          state.integrity = ratio;
+          if (chain.complete && state.phase === 'build') {
+            setMessage('Flooz route traced! Release when you are ready or squeeze in extra score.', 'success');
+          }
+          updateHud();
+        }
+
+        function rotateQueue(delta) {
+          if (!state.queue.length) return;
+          const piece = state.queue[0];
+          piece.rotation = (piece.rotation + delta + 4) % 4;
+          drawQueue();
+        }
+
+        function scrapQueuePiece() {
+          if (!state.queue.length) return;
+          state.queue.shift();
+          adjustCountdown(-state.scrapPenalty);
+          refillQueue();
+          setMessage('Scrapped conduit. Reserve release accelerated by 2 seconds.', 'danger');
+        }
+
+        function placeTile(x, y, options = {}) {
+          if (x < 0 || x >= state.gridSize || y < 0 || y >= state.gridSize) return false;
+          const { pieceOverride = null, queueIndex = null, fromDrag = false } = options;
+          const tile = state.board[y][x];
+          if (tile && tile.locked) {
+            setMessage('Core fixtures are immutable. Route around them.');
+            return false;
+          }
+          if (!tile) {
+            let pieceData;
+            if (pieceOverride) {
+              pieceData = { ...pieceOverride };
+              if (queueIndex !== null && queueIndex >= 0 && queueIndex < state.queue.length) {
+                state.queue.splice(queueIndex, 1);
+              }
+            } else {
+              if (!state.queue.length) {
+                setMessage('Queue depleted. Hold on until new conduits arrive.');
+                return false;
+              }
+              pieceData = { ...state.queue.shift() };
+            }
+            const placed = createTile(pieceData);
+            placed.pulse = 1;
+            state.board[y][x] = placed;
+            refillQueue();
+            updateIntegrity();
+            drawBoard();
+            if (!fromDrag) {
+              setMessage('Conduit placed. Keep building towards the drain.');
+            }
+            return true;
+          }
+          tile.rotation = (tile.rotation + 1) % 4;
+          tile.pulse = 1;
+          updateIntegrity();
+          drawBoard();
+          setMessage('Orientation adjusted. Watch the flow vector.');
+          return true;
+        }
+
+        function removeTile(x, y) {
+          const tile = state.board[y][x];
+          if (!tile || tile.locked) {
+            setMessage('Cannot purge structural fixtures.');
+            return;
+          }
+          state.board[y][x] = null;
+          adjustCountdown(-3);
+          setMessage('Conduit purged. Reserve hastened by 3 seconds.', 'danger');
+          updateIntegrity();
+          drawBoard();
+        }
+
+        function handleBoardPointerMove(event) {
+          if (state.phase !== 'build') return;
+          const drag = state.draggingPiece;
+          if (drag && event.pointerId !== drag.pointerId) return;
+          updateHoverFromPointer(event);
+        }
+
+        function handleBoardPointerLeave() {
+          if (state.draggingPiece) return;
+          setHoverCell(null);
+        }
+
+        function handleGlobalPointerMove(event) {
+          const drag = state.draggingPiece;
+          if (!drag || event.pointerId !== drag.pointerId) return;
+          updateHoverFromPointer(event);
+        }
+
+        function handleGlobalPointerUp(event) {
+          const drag = state.draggingPiece;
+          if (!drag || event.pointerId !== drag.pointerId) return;
+          completeQueueDrag(event);
+        }
+
+        function handleGlobalPointerCancel(event) {
+          const drag = state.draggingPiece;
+          if (!drag || event.pointerId !== drag.pointerId) return;
+          clearDragState();
+          setHoverCell(null);
+        }
+
+        function handleKeyDown(event) {
+          if (event.code !== 'Space') return;
+          if (state.phase !== 'build') return;
+          const target = state.focusCell || state.hoverCell;
+          if (!target) return;
+          const tile = state.board[target.y]?.[target.x];
+          if (!tile || tile.locked) return;
+          event.preventDefault();
+          tile.rotation = (tile.rotation + 1) % 4;
+          tile.pulse = 1;
+          updateIntegrity();
+          drawBoard();
+        }
+
+        function handleBoardClick(event) {
+          if (state.phase !== 'build') return;
+          if (state.draggingPiece) return;
+          const rect = canvas.getBoundingClientRect();
+          const tileSize = rect.width / state.gridSize;
+          const x = Math.floor((event.clientX - rect.left) / tileSize);
+          const y = Math.floor((event.clientY - rect.top) / tileSize);
+          if (x < 0 || y < 0 || x >= state.gridSize || y >= state.gridSize) return;
+          setFocusCell({ x, y });
+          placeTile(x, y);
+        }
+
+        function handleContextMenu(event) {
+          if (state.phase !== 'build') return;
+          event.preventDefault();
+          const rect = canvas.getBoundingClientRect();
+          const tileSize = rect.width / state.gridSize;
+          const x = Math.floor((event.clientX - rect.left) / tileSize);
+          const y = Math.floor((event.clientY - rect.top) / tileSize);
+          if (x < 0 || y < 0 || x >= state.gridSize || y >= state.gridSize) return;
+          setFocusCell({ x, y });
+          if (event.shiftKey) {
+            removeTile(x, y);
+            return;
+          }
+          const tile = state.board[y][x];
+          if (!tile || tile.locked) return;
+          tile.rotation = (tile.rotation + 1) % 4;
+          tile.pulse = 1;
+          updateIntegrity();
+          drawBoard();
+        }
+
+        function traceFlow() {
+          if (!state.start || !state.goal) {
+            return { success: false, sequence: [], failure: null, reason: 'Grid not initialized.' };
+          }
+          const sequence = [];
+          const visited = new Set();
+          let current = { x: state.start.x, y: state.start.y };
+          let incoming = 8;
+          while (true) {
+            const key = `${current.x},${current.y}`;
+            if (visited.has(key)) {
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Flooz loop detected. Too many junctions.' };
+            }
+            visited.add(key);
+            const tile = state.board[current.y][current.x];
+            if (!tile) {
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Gap in the conduit network.' };
+            }
+            const connectors = bitsFromMask(tileMask(tile));
+            if (!connectors.includes(incoming)) {
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Orientation mismatch. Pressure leaking upstream.' };
+            }
+            sequence.push({ x: current.x, y: current.y });
+            if (current.x === state.goal.x && current.y === state.goal.y) {
+              if (connectors.includes(2)) {
+                return { success: true, sequence, failure: null, reason: '' };
+              }
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Drain not engaged.' };
+            }
+            const outgoing = connectors.filter((bit) => bit !== incoming);
+            if (outgoing.length !== 1) {
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Flow split detected. Keep the conduit singular.' };
+            }
+            const dir = DIRS.find((entry) => entry.bit === outgoing[0]);
+            if (!dir) {
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Routing failure.' };
+            }
+            const nx = current.x + dir.dx;
+            const ny = current.y + dir.dy;
+            if (nx < 0 || nx >= state.gridSize || ny < 0 || ny >= state.gridSize) {
+              return { success: false, sequence, failure: { x: current.x, y: current.y }, reason: 'Flooz escaped the lattice bounds.' };
+            }
+            const nextTile = state.board[ny][nx];
+            if (!nextTile) {
+              return { success: false, sequence, failure: { x: nx, y: ny }, reason: 'Flooz hit an unbuilt segment.' };
+            }
+            incoming = dir.oppositeBit;
+            current = { x: nx, y: ny };
+          }
+        }
+
+        function animateFlow(sequence, success, reason, failureCell) {
+          if (!sequence.length) {
+            handleFailure(reason || 'Flooz failed to find a conduit.', failureCell || state.start);
+            return;
+          }
+          state.flowActive = true;
+          state.phase = 'flow';
+          clearPendingTimeouts();
+          resetWetness();
+          updateHud();
+          const total = sequence.length;
+          sequence.forEach((cell, index) => {
+            pushTimeout(() => {
+              const tile = state.board[cell.y][cell.x];
+              if (!tile) return;
+              tile.wetProgress = 1;
+              tile.pulse = 0.6;
+              state.integrity = Math.min(1, (index + 1) / Math.max(1, state.targetPathLength));
+              drawBoard();
+              updateHud();
+              if (index === total - 1) {
+                pushTimeout(() => {
+                  if (success) {
+                    handleSuccess();
+                  } else {
+                    handleFailure(reason, failureCell || cell);
+                  }
+                }, 420);
+              }
+            }, index * 220);
+          });
+        }
+
+        function handleSuccess() {
+          state.phase = 'win';
+          const reward = Math.round(180 + state.countdownRemaining * 8 + state.level * 12);
+          state.score += reward;
+          state.integrity = 1;
+          updateHud();
+          setMessage(`Flooz stabilized! +${reward} score. Reservoir pressure rising.`, 'success');
+          pushTimeout(() => {
+            state.level += 1;
+            initializeLevel();
+          }, 1500);
+        }
+
+        function handleFailure(reason, cell) {
+          state.phase = 'build';
+          state.flowActive = false;
+          state.failureCell = cell || null;
+          state.lastFailureReason = reason || 'Flooz destabilized.';
+          state.score = Math.max(0, state.score - 120);
+          state.integrity = 0;
+          const failurePenalty = state.currentConfig?.failurePenalty ?? 10;
+          const failureFloor = state.currentConfig?.failureFloor ?? 18;
+          const adjusted = Math.max(failureFloor, state.countdownRemaining - failurePenalty);
+          state.initialCountdown = adjusted;
+          state.countdownRemaining = adjusted;
+          refillQueue();
+          setMessage(`${state.lastFailureReason} Score penalty applied. Rebuild before the next wave hits.`, 'danger');
+          updateHud();
+          drawBoard();
+          pushTimeout(() => {
+            state.failureCell = null;
+            drawBoard();
+            startCountdown();
+          }, 1600);
+        }
+
+        function runFlow(manual = false) {
+          if (state.flowActive) return;
+          stopCountdown();
+          if (manual) {
+            setMessage('Manual release initiated. Monitoring flooz flow...', 'info');
+          }
+          const result = traceFlow();
+          clearFlowState();
+          animateFlow(result.sequence, result.success, result.reason, result.failure);
+        }
+
+        function startCountdown() {
+          stopCountdown();
+          state.phase = 'build';
+          updateHud();
+          setMessage('Reservoir pressurizing. Build the route and trigger Water Now when you are ready.');
+          state.timerId = setInterval(() => {
+            state.countdownRemaining -= 1;
+            if (state.countdownRemaining <= 0) {
+              stopCountdown();
+              setMessage('Reserve overflow triggered! Water is on the move...', 'danger');
+              runFlow(false);
+            }
+            updateHud();
+          }, 1000);
+        }
+
+        function prepareBoard() {
+          const config = state.currentConfig || getLevelConfig(state.level);
+          state.board = new Array(state.gridSize)
+            .fill(null)
+            .map(() => new Array(state.gridSize).fill(null));
+          const startConfig = config.start || {};
+          const startX = startConfig.x ?? 0;
+          const startY = clamp(startConfig.y ?? Math.floor(state.gridSize / 2), 1, state.gridSize - 2);
+          const goalConfig = config.goal || {};
+          const goalYBase =
+            goalConfig.y ??
+            startY + (config.goalVariance ? randomInt(config.goalVariance * 2 + 1) - config.goalVariance : 0);
+          const goalY = clamp(goalYBase, 1, state.gridSize - 2);
+          state.start = { x: startX, y: startY };
+          state.goal = { x: state.gridSize - 1, y: goalY };
+          state.board[startY][startX] = createTile(
+            { type: 'source', baseMask: 2 | 8 },
+            { locked: true, special: 'start', rotation: 0 }
+          );
+          state.board[goalY][state.gridSize - 1] = createTile(
+            { type: 'sink', baseMask: 2 | 8 },
+            { locked: true, special: 'goal', rotation: 0 }
+          );
+          const path = generatePathLayout(config);
+          const lockSpacing = Math.max(1, config.lockedSpacing ?? 4);
+          const prefillChance = Math.max(0, Math.min(1, config.prefillChance ?? 0.25));
+          const pathCells = new Set(path.order.map((cell) => keyFor(cell.x, cell.y)));
+          path.order.forEach((cell, index) => {
+            if ((cell.x === state.goal.x && cell.y === state.goal.y) || (cell.x === state.start.x && cell.y === state.start.y)) {
+              return;
+            }
+            if (state.board[cell.y][cell.x]) return;
+            const connectors = path.connectorsMap.get(keyFor(cell.x, cell.y));
+            if (!connectors) return;
+            if (index < 2) return;
+            const isAnchor = index % lockSpacing === 0;
+            const shouldPrefill = isAnchor || Math.random() < prefillChance;
+            if (!shouldPrefill) {
+              return;
+            }
+            const match = findPieceForMask(connectorsToMask(connectors));
+            if (!match) return;
+            const tile = createTile(match.piece, { rotation: match.rotation, locked: isAnchor });
+            tile.pulse = isAnchor ? 0.18 : 0.05;
+            state.board[cell.y][cell.x] = tile;
+          });
+          const blockerCount = config.blockerCount ?? 0;
+          const blockerPool = PIECES.filter((piece) => piece.type === 'cap');
+          for (let i = 0; i < blockerCount && blockerPool.length; i += 1) {
+            let attempts = 0;
+            while (attempts < 40) {
+              const x = randomInt(state.gridSize);
+              const y = randomInt(state.gridSize);
+              if (x === state.start.x && y === state.start.y) {
+                attempts += 1;
+                continue;
+              }
+              if (x === state.goal.x && y === state.goal.y) {
+                attempts += 1;
+                continue;
+              }
+              if (state.board[y][x]) {
+                attempts += 1;
+                continue;
+              }
+              if (pathCells.has(keyFor(x, y))) {
+                attempts += 1;
+                continue;
+              }
+              const template = blockerPool[randomInt(blockerPool.length)];
+              const blocker = createTile(template, { locked: true, rotation: randomInt(4) });
+              blocker.pulse = 0;
+              state.board[y][x] = blocker;
+              break;
+            }
+          }
+          state.targetPathLength = Math.max(6, path.order.length);
+        }
+
+        function initializeLevel() {
+          stopCountdown();
+          clearPendingTimeouts();
+          const previousConfig = state.currentConfig;
+          const config = getLevelConfig(state.level);
+          state.currentConfig = config;
+          state.gridSize = config.gridSize ?? state.gridSize;
+          state.activeUnlockedTypes = [...(config.unlockedTypes ?? [])];
+          state.phase = 'build';
+          state.flowActive = false;
+          state.failureCell = null;
+          state.queue = [];
+          state.hoverCell = null;
+          state.focusCell = null;
+          clearDragState(false);
+          state.shimmerSeed = Math.random() * 360;
+          state.initialCountdown = config.initialCountdown ?? 48;
+          state.countdownRemaining = state.initialCountdown;
+          prepareBoard();
+          refillQueue();
+          updateIntegrity();
+          drawBoard();
+          updateHud();
+          startCountdown();
+          const previousTypes = new Set(previousConfig?.unlockedTypes ?? []);
+          const currentTypes = config.unlockedTypes ?? [];
+          const newUnlocks = currentTypes.filter((type) => !previousTypes.has(type));
+          const unlockText = newUnlocks.length
+            ? ` New conduit unlocked: ${newUnlocks.map((type) => typeLabel(type)).join(', ')}.`
+            : '';
+          const prefix = config.name ? `${config.name}: ` : '';
+          const intro = config.intro || 'Fresh lattice online. Queue conduits and prep for the flooz release.';
+          setMessage(`${prefix}${intro}${unlockText}`);
+        }
+
+        function tick(timestamp) {
+          drawBoard(timestamp);
+          state.animationFrame = requestAnimationFrame(tick);
+        }
+
+        function init() {
+          const resizeObserver = new ResizeObserver(resizeCanvas);
+          resizeObserver.observe(boardWrap);
+          registerCleanup(() => resizeObserver.disconnect());
+          resizeCanvas();
+          initializeLevel();
+          state.animationFrame = requestAnimationFrame(tick);
+          canvas.addEventListener('click', handleBoardClick);
+          registerCleanup(() => canvas.removeEventListener('click', handleBoardClick));
+          canvas.addEventListener('contextmenu', handleContextMenu);
+          registerCleanup(() => canvas.removeEventListener('contextmenu', handleContextMenu));
+          canvas.addEventListener('pointermove', handleBoardPointerMove);
+          canvas.addEventListener('pointerleave', handleBoardPointerLeave);
+          registerCleanup(() => {
+            canvas.removeEventListener('pointermove', handleBoardPointerMove);
+            canvas.removeEventListener('pointerleave', handleBoardPointerLeave);
+          });
+          const pointerTarget = globalThis;
+          pointerTarget.addEventListener('pointermove', handleGlobalPointerMove);
+          pointerTarget.addEventListener('pointerup', handleGlobalPointerUp);
+          pointerTarget.addEventListener('pointercancel', handleGlobalPointerCancel);
+          registerCleanup(() => {
+            pointerTarget.removeEventListener('pointermove', handleGlobalPointerMove);
+            pointerTarget.removeEventListener('pointerup', handleGlobalPointerUp);
+            pointerTarget.removeEventListener('pointercancel', handleGlobalPointerCancel);
+          });
+          const keyListenerTarget = globalThis;
+          keyListenerTarget.addEventListener('keydown', handleKeyDown);
+          registerCleanup(() => keyListenerTarget.removeEventListener('keydown', handleKeyDown));
+          const rotateLeftHandler = () => rotateQueue(-1);
+          const rotateRightHandler = () => rotateQueue(1);
+          rotateLeftBtn.addEventListener('click', rotateLeftHandler);
+          rotateRightBtn.addEventListener('click', rotateRightHandler);
+          scrapBtn.addEventListener('click', scrapQueuePiece);
+          registerCleanup(() => {
+            rotateLeftBtn.removeEventListener('click', rotateLeftHandler);
+            rotateRightBtn.removeEventListener('click', rotateRightHandler);
+            scrapBtn.removeEventListener('click', scrapQueuePiece);
+          });
+          const manualReleaseHandler = () => runFlow(true);
+          forceButton.addEventListener('click', manualReleaseHandler);
+          registerCleanup(() => forceButton.removeEventListener('click', manualReleaseHandler));
+          resetButton.addEventListener('click', initializeLevel);
+          registerCleanup(() => resetButton.removeEventListener('click', initializeLevel));
+          registerCleanup(() => {
+            stopCountdown();
+            clearPendingTimeouts();
+            if (state.animationFrame) {
+              cancelAnimationFrame(state.animationFrame);
+            }
+          });
+        }
+
+        init();
+      })();
+    </script>
+  </body>
+</html>

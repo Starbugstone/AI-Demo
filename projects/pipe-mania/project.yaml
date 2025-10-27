@@ -1,0 +1,13 @@
+﻿name: "Pipe Mania: Coolant Cascade"
+summary: Guide the flooz by dragging queued pipes onto the grid, pivoting runs on the fly before the reservoir erupts.
+agents:
+  - GPT-5 Codex
+  - Midjourney
+status: beta game
+tags:
+  - puzzle
+  - arcade
+  - interactive
+  - strategy
+  - timed
+order: 8
