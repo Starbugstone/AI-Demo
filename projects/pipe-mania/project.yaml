@@ -1,13 +1,13 @@
-name: "Pipe Mania: Coolant Cascade"
-summary: Chain queued conduits into a sealed coolant artery before the plasma surge overwhelms the reactor.
+﻿name: "Pipe Mania: Coolant Cascade"
+summary: Guide the flooz by dragging queued pipes onto the grid, pivoting runs on the fly before the reservoir erupts.
 agents:
   - GPT-5 Codex
   - Midjourney
-status: prototype
+status: beta game
 tags:
   - puzzle
   - arcade
   - interactive
   - strategy
   - timed
-order: 35
+order: 8

@@ -3,10 +3,10 @@ summary: Tap or press space to guide the bird through neon gate pairs and chase 
 agents:
   - GPT-5 Codex
   - Midjourney
-status: prototype
+status: beta game
 tags:
   - game
   - canvas
   - arcade
 entry: index.html
-order: 15
+order: 10
