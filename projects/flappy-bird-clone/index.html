@@ -147,7 +147,464 @@
         best: 0,
         multiplier: 1,
         lastSpawnY: 320,
+        backgroundLayers: [],
+        nebulae: [],
+        galaxies: [],
+        lightStreaks: [],
+        trail: [],
+        trailCooldown: 0,
+        trailBoost: 0,
+        shake: {
+          elapsed: 1,
+          duration: 0,
+          intensity: 0,
+        },
       };
+
+      function initializeCosmos() {
+        const layerConfigs = [
+          {
+            count: 52,
+            speed: 12,
+            parallax: 0.1,
+            size: [0.9, 1.7],
+            tint: [148, 163, 184],
+            baseAlpha: 0.42,
+            twinkle: 1.2,
+          },
+          {
+            count: 76,
+            speed: 26,
+            parallax: 0.22,
+            size: [0.7, 1.2],
+            tint: [56, 189, 248],
+            baseAlpha: 0.58,
+            twinkle: 1.8,
+          },
+          {
+            count: 110,
+            speed: 46,
+            parallax: 0.36,
+            size: [0.4, 0.9],
+            tint: [129, 140, 248],
+            baseAlpha: 0.5,
+            twinkle: 2.3,
+          },
+        ];
+
+        state.backgroundLayers = layerConfigs.map((config) => {
+          const [minSize, maxSize] = config.size;
+          return {
+            ...config,
+            maxSize,
+            stars: Array.from({ length: config.count }, () => ({
+              x: Math.random() * state.width,
+              y: Math.random() * state.height,
+              size: minSize + Math.random() * (maxSize - minSize),
+              phase: Math.random() * Math.PI * 2,
+            })),
+          };
+        });
+
+        state.nebulae = [
+          {
+            x: state.width * 0.24,
+            y: state.height * 0.32,
+            radius: 160,
+            colors: [
+              [58, 176, 255, 0.48],
+              [14, 165, 233, 0.07],
+            ],
+            pulse: Math.random() * Math.PI * 2,
+            pulseSpeed: 0.9,
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: 0.16,
+            floatSpeed: 0.32,
+            strands: Array.from({ length: 4 }, () => ({
+              offset: Math.random() * Math.PI * 2,
+              radiusScale: 0.45 + Math.random() * 0.4,
+              width: 0.45 + Math.random() * 0.35,
+              drift: 0.4 + Math.random() * 0.6,
+            })),
+          },
+          {
+            x: state.width * 0.68,
+            y: state.height * 0.2,
+            radius: 200,
+            colors: [
+              [236, 72, 153, 0.4],
+              [79, 70, 229, 0.12],
+            ],
+            pulse: Math.random() * Math.PI * 2,
+            pulseSpeed: 0.7,
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: -0.18,
+            floatSpeed: 0.26,
+            strands: Array.from({ length: 3 }, () => ({
+              offset: Math.random() * Math.PI * 2,
+              radiusScale: 0.52 + Math.random() * 0.35,
+              width: 0.38 + Math.random() * 0.25,
+              drift: 0.3 + Math.random() * 0.5,
+            })),
+          },
+          {
+            x: state.width * 0.78,
+            y: state.height * 0.72,
+            radius: 130,
+            colors: [
+              [129, 140, 248, 0.5],
+              [56, 189, 248, 0.12],
+            ],
+            pulse: Math.random() * Math.PI * 2,
+            pulseSpeed: 1.05,
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: 0.22,
+            floatSpeed: 0.44,
+            strands: Array.from({ length: 3 }, () => ({
+              offset: Math.random() * Math.PI * 2,
+              radiusScale: 0.4 + Math.random() * 0.3,
+              width: 0.42 + Math.random() * 0.28,
+              drift: 0.45 + Math.random() * 0.55,
+            })),
+          },
+        ];
+
+        state.galaxies = [
+          createGalaxy({
+            x: state.width * 0.18,
+            y: state.height * 0.2,
+            radius: 130,
+            arms: 3,
+            tint: [94, 234, 212],
+          }),
+          createGalaxy({
+            x: state.width * 0.74,
+            y: state.height * 0.34,
+            radius: 180,
+            arms: 4,
+            tint: [129, 140, 248],
+          }),
+          createGalaxy({
+            x: state.width * 0.5,
+            y: state.height * 0.78,
+            radius: 110,
+            arms: 2,
+            tint: [56, 189, 248],
+          }),
+        ];
+
+        state.lightStreaks = Array.from({ length: 12 }, () => createLightStreak());
+      }
+
+      function createGalaxy({ x, y, radius, arms = 3, tint }) {
+        const starSamples = 90;
+        const stars = [];
+        for (let arm = 0; arm < arms; arm++) {
+          const armOffset = (arm / arms) * Math.PI * 2;
+          for (let i = 0; i < starSamples; i++) {
+            const t = i / starSamples;
+            const angle = armOffset + t * Math.PI * 2.1;
+            const distance = radius * (0.18 + t * 0.95);
+            stars.push({
+              baseAngle: angle,
+              distance: distance * (0.82 + Math.random() * 0.28),
+              phase: Math.random() * Math.PI * 2,
+              twinkle: 0.8 + Math.random() * 1.6,
+              size: 0.6 + Math.random() * 1.8,
+              spread: 0.55 + Math.random() * 0.35,
+            });
+          }
+        }
+
+        return {
+          x,
+          y,
+          radius,
+          arms,
+          tint,
+          stars,
+          rotation: Math.random() * Math.PI * 2,
+          rotationSpeed: (Math.random() - 0.5) * 0.06,
+          core: `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, 0.82)`,
+          halo: `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, 0.12)`,
+        };
+      }
+
+      function createLightStreak() {
+        const angle = -Math.PI / 9 + (Math.random() - 0.5) * 0.22;
+        const length = 90 + Math.random() * 160;
+        return {
+          x: Math.random() * state.width,
+          y: Math.random() * state.height,
+          angle,
+          length,
+          width: 1 + Math.random() * 1.5,
+          speed: 26 + Math.random() * 42,
+          parallax: 0.22 + Math.random() * 0.38,
+          alpha: 0.12 + Math.random() * 0.22,
+        };
+      }
+
+      function advanceCosmos(dt) {
+        const drift = state.running ? state.pipeSpeed * 0.4 : 36;
+        for (const layer of state.backgroundLayers) {
+          const speed = layer.speed + drift * layer.parallax;
+          for (const star of layer.stars) {
+            star.x -= speed * dt;
+            if (star.x < -layer.maxSize) {
+              star.x = state.width + Math.random() * state.width * 0.25;
+              star.y = Math.random() * state.height;
+            }
+            star.phase += dt * layer.twinkle;
+          }
+        }
+
+        for (const nebula of state.nebulae) {
+          nebula.pulse += dt * nebula.pulseSpeed;
+          nebula.rotation += dt * nebula.rotationSpeed;
+          for (const strand of nebula.strands) {
+            strand.offset += dt * strand.drift;
+          }
+        }
+
+        for (const galaxy of state.galaxies) {
+          galaxy.rotation += dt * galaxy.rotationSpeed;
+          for (const star of galaxy.stars) {
+            star.phase += dt * star.twinkle;
+          }
+        }
+
+        for (const streak of state.lightStreaks) {
+          const baseSpeed = streak.speed + drift * streak.parallax;
+          streak.x -= baseSpeed * dt;
+          streak.y += Math.sin(streak.angle) * baseSpeed * 0.05 * dt;
+          if (streak.x + Math.cos(streak.angle) * streak.length < -80) {
+            Object.assign(streak, createLightStreak(), {
+              x: state.width + Math.random() * state.width * 0.25,
+            });
+          }
+        }
+      }
+
+      function renderCosmos(now) {
+        const time = now * 0.001;
+        const glow = ctx.createLinearGradient(0, 0, 0, state.height);
+        glow.addColorStop(0, "#040a1d");
+        glow.addColorStop(1, "#01030d");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, state.width, state.height);
+
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        for (const galaxy of state.galaxies) {
+          ctx.save();
+          ctx.translate(galaxy.x, galaxy.y);
+          ctx.rotate(galaxy.rotation);
+          const coreGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, galaxy.radius);
+          coreGradient.addColorStop(0, "rgba(255, 255, 255, 0.9)");
+          coreGradient.addColorStop(0.35, galaxy.core);
+          coreGradient.addColorStop(1, galaxy.halo);
+          ctx.fillStyle = coreGradient;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, galaxy.radius, galaxy.radius * 0.68, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          for (const star of galaxy.stars) {
+            const oscillation = Math.sin(star.phase);
+            const angle = star.baseAngle + Math.sin(star.phase * 0.5) * 0.12;
+            const distance = star.distance * (0.92 + Math.sin(star.phase * 0.3) * 0.1);
+            const sx = Math.cos(angle) * distance;
+            const sy = Math.sin(angle) * distance * star.spread;
+            const alpha = 0.18 + Math.abs(oscillation) * 0.32;
+            const size = star.size * (0.7 + Math.abs(oscillation) * 0.4);
+            ctx.fillStyle = `rgba(${galaxy.tint[0]}, ${galaxy.tint[1]}, ${galaxy.tint[2]}, ${alpha})`;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, size, size * 0.75, angle, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+        ctx.restore();
+
+        for (const nebula of state.nebulae) {
+          ctx.save();
+          const floatY = nebula.y + Math.sin(time * nebula.floatSpeed) * 18;
+          ctx.translate(nebula.x, floatY);
+          ctx.rotate(nebula.rotation);
+          const energy = 0.6 + Math.sin(nebula.pulse) * 0.25;
+          const baseRadius = nebula.radius * (0.92 + Math.sin(nebula.pulse * 0.7) * 0.06);
+          const [inner, outer] = nebula.colors;
+          const gradient = ctx.createRadialGradient(0, 0, baseRadius * 0.15, 0, 0, baseRadius);
+          gradient.addColorStop(
+            0,
+            `rgba(${inner[0]}, ${inner[1]}, ${inner[2]}, ${(inner[3] || 0.4) * energy})`
+          );
+          gradient.addColorStop(
+            1,
+            `rgba(${outer[0]}, ${outer[1]}, ${outer[2]}, ${(outer[3] || 0.1) * energy})`
+          );
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, baseRadius * 1.25, baseRadius * 0.95, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.globalCompositeOperation = "lighter";
+          for (const strand of nebula.strands) {
+            const radius = baseRadius * (strand.radiusScale + 0.3);
+            const start = strand.offset;
+            const end = start + Math.PI * 0.6;
+            ctx.lineWidth = baseRadius * 0.12 * strand.width * energy;
+            ctx.strokeStyle = `rgba(56, 189, 248, ${0.06 * energy})`;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, start, end);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        for (const layer of state.backgroundLayers) {
+          ctx.save();
+          for (const star of layer.stars) {
+            const twinkle = 0.6 + Math.sin(star.phase + time * 3.2) * 0.4;
+            const [r, g, b] = layer.tint;
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${layer.baseAlpha * twinkle})`;
+            const renderSize = star.size * (1 + Math.sin(star.phase * 2) * 0.25);
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, renderSize, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        for (const streak of state.lightStreaks) {
+          const endX = streak.x + Math.cos(streak.angle) * streak.length;
+          const endY = streak.y + Math.sin(streak.angle) * streak.length;
+          const gradient = ctx.createLinearGradient(streak.x, streak.y, endX, endY);
+          gradient.addColorStop(0, "rgba(148, 163, 184, 0)");
+          gradient.addColorStop(0.4, `rgba(56, 189, 248, ${streak.alpha})`);
+          gradient.addColorStop(1, "rgba(148, 163, 184, 0)");
+          ctx.strokeStyle = gradient;
+          ctx.lineWidth = streak.width;
+          ctx.beginPath();
+          ctx.moveTo(streak.x, streak.y);
+          ctx.lineTo(endX, endY);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function addTrailPoint(widthScale = 1) {
+        const speedDelta = Math.max(0, state.pipeSpeed - 190);
+        const speedFactor = 1 + Math.min(0.9, speedDelta / 220);
+        const baseX = state.bird.x - state.bird.radius * (0.65 + widthScale * 0.08);
+        const baseY = state.bird.y + state.bird.velocity * 0.025;
+        const maxLife = 0.42 + Math.min(0.55, widthScale * 0.24) + speedFactor * 0.18;
+        state.trail.unshift({
+          x: baseX,
+          y: baseY,
+          age: 0,
+          maxLife,
+          width: (8 + widthScale * 6) * speedFactor,
+          glow: 0.22 + widthScale * 0.18,
+          vx: -(85 + state.pipeSpeed * 0.5) * (0.9 + widthScale * 0.08),
+          vy: -state.bird.velocity * 0.1,
+        });
+        const maxSegments = 70 + Math.floor(Math.min(42, speedDelta * 0.25));
+        if (state.trail.length > maxSegments) {
+          state.trail.length = maxSegments;
+        }
+      }
+
+      function burstTrail(strength = 1) {
+        state.trailBoost = Math.min(1.6, state.trailBoost + strength * 0.6);
+        for (let i = 0; i < 6; i++) {
+          addTrailPoint(1 + strength * 0.4);
+        }
+      }
+
+      function updateTrail(dt, emissionScale) {
+        state.trailBoost = Math.max(0, state.trailBoost - dt * 1.8);
+        const intensity = Math.max(0, emissionScale) + state.trailBoost;
+        const emitRate = 0.9 + intensity * 2.4;
+        state.trailCooldown += dt * emitRate;
+        const interval = 0.015;
+        while (state.trailCooldown >= interval) {
+          addTrailPoint(1 + intensity * 0.35);
+          state.trailCooldown -= interval;
+        }
+
+        for (const segment of state.trail) {
+          segment.age += dt;
+          segment.x += segment.vx * dt;
+          segment.y += segment.vy * dt;
+          segment.vx *= 0.985;
+          segment.vy *= 0.94;
+        }
+        state.trail = state.trail.filter((segment) => segment.age < segment.maxLife);
+      }
+
+      function renderTrail() {
+        if (state.trail.length < 2) return;
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.lineCap = "round";
+
+        for (let i = 0; i < state.trail.length - 1; i++) {
+          const current = state.trail[i];
+          const next = state.trail[i + 1];
+          const progress = current.age / current.maxLife;
+          if (progress >= 1) continue;
+          const width = Math.max(1.2, current.width * (1 - progress));
+          const glow = current.glow * (1 - progress);
+          const gradient = ctx.createLinearGradient(current.x, current.y, next.x, next.y);
+          gradient.addColorStop(0, "rgba(14, 165, 233, 0)");
+          gradient.addColorStop(0.45, `rgba(56, 189, 248, ${glow})`);
+          gradient.addColorStop(1, "rgba(250, 204, 21, 0)");
+          ctx.strokeStyle = gradient;
+          ctx.lineWidth = width;
+          ctx.beginPath();
+          ctx.moveTo(current.x, current.y);
+          ctx.lineTo(next.x, next.y);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${glow * 0.35})`;
+          ctx.lineWidth = width * 0.45;
+          ctx.beginPath();
+          ctx.moveTo(current.x, current.y);
+          ctx.lineTo(next.x, next.y);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function startShake(intensity = 6, duration = 0.3) {
+        state.shake.intensity = Math.max(intensity, state.shake.intensity * 0.6);
+        state.shake.duration = Math.max(duration, state.shake.duration * 0.6);
+        state.shake.elapsed = 0;
+      }
+
+      function updateShake(dt) {
+        if (state.shake.elapsed < state.shake.duration) {
+          state.shake.elapsed += dt;
+        }
+      }
+
+      function getShakeOffset(now) {
+        if (state.shake.elapsed >= state.shake.duration) {
+          return { x: 0, y: 0 };
+        }
+        const progress = state.shake.elapsed / state.shake.duration;
+        const damping = (1 - progress) * (1 - progress);
+        const time = now * 0.001;
+        const offsetX = Math.sin(time * 90 + state.shake.elapsed * 120) * state.shake.intensity * damping;
+        const offsetY = Math.cos(time * 70 + state.shake.elapsed * 150) * state.shake.intensity * damping;
+        return { x: offsetX, y: offsetY };
+      }
+
+      initializeCosmos();
 
       function formatScore(value) {
         return value.toString().padStart(3, "0");
@@ -177,6 +634,12 @@
         state.pipeGap = 180;
         state.pipeSpeed = 190;
         state.lastSpawnY = state.height / 2;
+        state.trail = [];
+        state.trailCooldown = 0;
+        state.trailBoost = 0;
+        state.shake.elapsed = 1;
+        state.shake.duration = 0;
+        state.shake.intensity = 0;
         updateHud();
         draw(0);
       }
@@ -200,6 +663,7 @@
         if (state.gameOver) {
           resetGame();
           state.running = true;
+          burstTrail(1.4);
           updateHud();
           return;
         }
@@ -210,12 +674,16 @@
         }
         state.bird.velocity = state.jump;
         state.bird.wobble = 0.5;
+        burstTrail(0.9 + Math.min(0.6, state.multiplier * 0.08));
       }
 
       function update(dt) {
+        advanceCosmos(dt);
+        updateShake(dt);
         if (!state.running) {
           state.bird.wobble += dt * 2.8;
           state.bird.y = state.height / 2 + Math.sin(state.bird.wobble) * 12;
+          updateTrail(dt, 0.25);
           return;
         }
 
@@ -248,6 +716,7 @@
         const topLimit = state.bird.radius + 4;
         const bottomLimit = state.height - state.bird.radius - 4;
         if (state.bird.y < topLimit || state.bird.y > bottomLimit) {
+          startShake(7, 0.32);
           triggerGameOver();
         }
 
@@ -259,11 +728,14 @@
           const birdRight = state.bird.x + state.bird.radius - 6;
           if (birdRight > pipe.x && birdLeft < pipe.x + pipe.width) {
             if (state.bird.y - state.bird.radius < topPipeBottom || state.bird.y + state.bird.radius > bottomPipeTop) {
+              startShake(10, 0.45);
               triggerGameOver();
               break;
             }
           }
         }
+
+        updateTrail(dt, 0.9 + Math.min(0.8, state.multiplier * 0.15));
       }
 
       function triggerGameOver() {
@@ -276,22 +748,11 @@
       }
 
       function draw(now) {
-        const glow = ctx.createLinearGradient(0, 0, 0, state.height);
-        glow.addColorStop(0, "#0f172a");
-        glow.addColorStop(1, "#020617");
-        ctx.fillStyle = glow;
-        ctx.fillRect(0, 0, state.width, state.height);
+        renderCosmos(now);
 
-        // Background stars
+        const shakeOffset = getShakeOffset(now);
         ctx.save();
-        ctx.globalAlpha = 0.35;
-        ctx.fillStyle = "#38bdf8";
-        for (let i = 0; i < 24; i++) {
-          const x = (now * 0.015 + i * 75) % state.width;
-          const y = (i * 131 + now * 0.04) % state.height;
-          ctx.fillRect(x, y, 2, 2);
-        }
-        ctx.restore();
+        ctx.translate(shakeOffset.x, shakeOffset.y);
 
         // Pipes
         for (const pipe of state.pipes) {
@@ -314,6 +775,8 @@
           ctx.fillRect(pipe.x - 6, topHeight - 12, pipe.width + 12, 12);
           ctx.fillRect(pipe.x - 6, bottomY, pipe.width + 12, 12);
         }
+
+        renderTrail();
 
         // Bird
         ctx.save();
@@ -347,6 +810,7 @@
         ctx.beginPath();
         ctx.ellipse(-6, 10 + wingFlap * 4, 16, 8, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
         ctx.restore();
 
         if (state.gameOver) {
