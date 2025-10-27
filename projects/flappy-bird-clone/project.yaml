@@ -1,0 +1,12 @@
+name: Neon Pipelines
+summary: Tap or press space to guide the bird through neon gate pairs and chase a growing score multiplier.
+agents:
+  - GPT-5 Codex
+  - Midjourney
+status: prototype
+tags:
+  - game
+  - canvas
+  - arcade
+entry: index.html
+order: 15
