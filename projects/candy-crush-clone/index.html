@@ -1,0 +1,1916 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cascade Candy Clash</title>
+    <style>
+      :host {
+        font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: #e2e8f0;
+        letter-spacing: 0.01em;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background: transparent;
+      }
+      .wrapper {
+        position: relative;
+        display: grid;
+        gap: 1.75rem;
+        padding: 1.8rem;
+        border-radius: 1.6rem;
+        border: 1px solid rgba(244, 114, 182, 0.25);
+        background: radial-gradient(circle at top left, rgba(244, 114, 182, 0.18), rgba(14, 116, 144, 0.12)),
+          rgba(15, 23, 42, 0.86);
+        box-shadow: 0 1.8rem 3.6rem rgba(2, 6, 23, 0.7);
+        overflow: hidden;
+      }
+      .wrapper::before {
+        content: "";
+        position: absolute;
+        inset: -40% -30% auto -30%;
+        height: 360px;
+        background: radial-gradient(circle, rgba(190, 242, 100, 0.32), rgba(14, 165, 233, 0));
+        filter: blur(12px);
+        opacity: 0.7;
+        pointer-events: none;
+        animation: pulse 14s ease-in-out infinite;
+      }
+      header {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1.4rem;
+        flex-wrap: wrap;
+      }
+      header h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 2.4vw, 2.4rem);
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+      header p {
+        margin: 0;
+        color: rgba(203, 213, 225, 0.86);
+        max-width: 32rem;
+        line-height: 1.6;
+      }
+      .hud {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.9rem;
+      }
+      .stat {
+        position: relative;
+        padding: 0.95rem 1.1rem;
+        border-radius: 1rem;
+        background: linear-gradient(135deg, rgba(15, 118, 110, 0.32), rgba(236, 72, 153, 0.18));
+        border: 1px solid rgba(240, 171, 252, 0.28);
+        box-shadow: inset 0 0 0.75rem rgba(56, 189, 248, 0.16);
+        overflow: hidden;
+      }
+      .stat strong {
+        display: block;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: rgba(226, 232, 240, 0.72);
+        margin-bottom: 0.35rem;
+      }
+      .stat span {
+        font-size: 1.7rem;
+        font-weight: 600;
+        color: #f472b6;
+      }
+      .stat .subtle {
+        display: block;
+        margin-top: 0.4rem;
+        font-size: 0.82rem;
+        color: rgba(148, 163, 184, 0.88);
+        letter-spacing: 0.08em;
+      }
+      .board-shell {
+        position: relative;
+        z-index: 1;
+        padding: 1.1rem;
+        border-radius: 1.4rem;
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.7), rgba(30, 64, 175, 0.35));
+        border: 1px solid rgba(147, 197, 253, 0.22);
+        box-shadow: inset 0 0 2.2rem rgba(15, 118, 110, 0.24);
+      }
+      /* FX canvas overlay */
+      .fx-layer {
+        position: absolute;
+        inset: 0.6rem;
+        pointer-events: none;
+        z-index: 2;
+        border-radius: 1rem;
+        overflow: hidden;
+        filter: drop-shadow(0 0 0.25rem rgba(236, 72, 153, 0.25));
+      }
+      .board {
+        --cell-size: min(64px, min(12vw, 82px));
+        display: grid;
+        grid-template-columns: repeat(8, var(--cell-size));
+        grid-template-rows: repeat(8, var(--cell-size));
+        gap: 0.55rem;
+        justify-content: center;
+      }
+      .candy {
+        position: relative;
+        width: var(--cell-size);
+        height: var(--cell-size);
+        border-radius: 24%;
+        display: grid;
+        place-items: center;
+        font-size: calc(var(--cell-size) * 0.55);
+        cursor: pointer;
+        transition: transform 0.16s ease, filter 0.18s ease, box-shadow 0.18s ease;
+        box-shadow: inset 0 -0.2rem 0.45rem rgba(15, 23, 42, 0.26), 0 0.45rem 1.35rem rgba(2, 6, 23, 0.45);
+        border: 2px solid rgba(15, 23, 42, 0.6);
+      }
+      .candy::after {
+        content: "";
+        position: absolute;
+        inset: 18% 24% auto 24%;
+        height: 26%;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.65);
+        filter: blur(3px);
+        opacity: 0.75;
+      }
+      .candy.empty {
+        background: rgba(15, 23, 42, 0.45);
+        border-color: rgba(148, 163, 184, 0.25);
+        box-shadow: inset 0 0 0.5rem rgba(30, 58, 138, 0.35);
+        cursor: default;
+      }
+      .candy.selected {
+        transform: scale(1.08) rotate(-2deg);
+        filter: brightness(1.25);
+        box-shadow: 0 0.65rem 1.65rem rgba(236, 72, 153, 0.55);
+        border-color: rgba(248, 250, 252, 0.8);
+      }
+      .candy.invalid {
+        animation: shake 320ms ease;
+      }
+      /* Idle hint state */
+      .candy.hint {
+        outline: 3px solid rgba(250, 204, 21, 0.75);
+        outline-offset: 3px;
+        filter: brightness(1.2) saturate(1.1);
+        animation: hintGlow 1000ms ease-in-out infinite;
+      }
+      @keyframes hintGlow {
+        0% { transform: scale(1); box-shadow: 0 0.45rem 1.15rem rgba(250, 204, 21, 0.35); }
+        50% { transform: scale(1.06); box-shadow: 0 0.8rem 1.6rem rgba(250, 204, 21, 0.55); }
+        100% { transform: scale(1); box-shadow: 0 0.45rem 1.15rem rgba(250, 204, 21, 0.35); }
+      }
+      .candy.clearing {
+        animation: vanish 280ms ease forwards;
+      }
+      .candy.spawn {
+        animation: pop 320ms ease;
+      }
+      .candy.upgrade {
+        animation: upgrade 380ms ease;
+      }
+      .candy.blast {
+        animation: blast 360ms ease;
+      }
+      .candy.bomb::after {
+        background: rgba(255, 255, 255, 0.85);
+        opacity: 0.9;
+      }
+      .candy.orb {
+        background: linear-gradient(135deg, #f0abfc, #60a5fa, #34d399);
+        box-shadow: 0 0.6rem 1.4rem rgba(99, 102, 241, 0.55), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35);
+      }
+      .candy.orb::after {
+        background: rgba(255, 255, 255, 0.95);
+        opacity: 0.95;
+      }
+      .candy.cross {
+        box-shadow: 0 0.6rem 1.4rem rgba(250, 204, 21, 0.45), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35);
+      }
+      /* Over-the-top shiny bonuses */
+      .candy.bomb, .candy.orb, .candy.cross {
+        animation: glowPulse 1600ms ease-in-out infinite alternate;
+        position: relative;
+        overflow: hidden;
+      }
+      .candy.bomb::before, .candy.orb::before, .candy.cross::before {
+        content: "";
+        position: absolute;
+        inset: -20% -40% -20% -40%;
+        background: linear-gradient(75deg, rgba(255,255,255,0) 35%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 65%);
+        transform: translateX(-60%) rotate(12deg);
+        animation: sheenMove 2200ms ease-in-out infinite;
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+      @keyframes glowPulse {
+        0% { filter: brightness(1) saturate(1); box-shadow: 0 0.6rem 1.4rem rgba(244,114,182,0.35), inset 0 -0.35rem 0.5rem rgba(15,23,42,0.35); }
+        100% { filter: brightness(1.25) saturate(1.2); box-shadow: 0 1rem 2rem rgba(244,114,182,0.6), inset 0 -0.35rem 0.6rem rgba(15,23,42,0.45); }
+      }
+      @keyframes sheenMove {
+        0% { transform: translateX(-70%) rotate(12deg); opacity: 0.0; }
+        35% { opacity: 0.65; }
+        50% { transform: translateX(20%) rotate(12deg); opacity: 0.0; }
+        100% { transform: translateX(60%) rotate(12deg); opacity: 0.0; }
+      }
+      .candy .glyph {
+        position: relative;
+        z-index: 1;
+        filter: drop-shadow(0 0 0.3rem rgba(15, 23, 42, 0.35));
+        transform: translateY(-3%);
+      }
+      .feed {
+        position: relative;
+        z-index: 1;
+        padding: 1rem 1.1rem 1.2rem;
+        border-radius: 1.2rem;
+        background: linear-gradient(165deg, rgba(8, 47, 73, 0.65), rgba(147, 51, 234, 0.25));
+        border: 1px solid rgba(129, 140, 248, 0.32);
+      }
+      .feed h2 {
+        margin: 0 0 0.6rem;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: rgba(226, 232, 240, 0.8);
+      }
+      .feed ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 0.5rem;
+      }
+      .feed li {
+        font-size: 0.86rem;
+        color: rgba(191, 219, 254, 0.86);
+        display: flex;
+        justify-content: space-between;
+        gap: 0.7rem;
+        background: rgba(30, 64, 175, 0.24);
+        border-radius: 0.7rem;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: inset 0 0 0.65rem rgba(59, 130, 246, 0.18);
+      }
+      .feed li span {
+        font-weight: 600;
+        color: #f9a8d4;
+      }
+      footer {
+        position: relative;
+        z-index: 1;
+        color: rgba(203, 213, 225, 0.8);
+        font-size: 0.9rem;
+        line-height: 1.55;
+        display: flex;
+        gap: 1.1rem;
+        flex-wrap: wrap;
+      }
+      footer strong {
+        color: #fbcfe8;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: rotate(0deg) scale(1);
+          opacity: 0.65;
+        }
+        45% {
+          transform: rotate(9deg) scale(1.08);
+          opacity: 0.85;
+        }
+      }
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        20% {
+          transform: translateX(-6%);
+        }
+        40% {
+          transform: translateX(6%);
+        }
+        60% {
+          transform: translateX(-5%);
+        }
+        80% {
+          transform: translateX(5%);
+        }
+      }
+      @keyframes vanish {
+        0% {
+          transform: scale(1) rotate(0deg);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(0.1) rotate(180deg);
+          opacity: 0;
+        }
+      }
+      @keyframes pop {
+        0% {
+          transform: scale(0.2);
+        }
+        60% {
+          transform: scale(1.15);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      @keyframes upgrade {
+        0% {
+          box-shadow: 0 0 0 rgba(250, 204, 21, 0);
+          transform: scale(1);
+        }
+        50% {
+          box-shadow: 0 0 1.2rem rgba(250, 204, 21, 0.9);
+          transform: scale(1.12);
+        }
+        100% {
+          box-shadow: 0 0 0.6rem rgba(250, 204, 21, 0.5);
+          transform: scale(1);
+        }
+      }
+      @keyframes blast {
+        0% {
+          transform: scale(1);
+          filter: brightness(1);
+          opacity: 1;
+        }
+        40% {
+          transform: scale(1.15);
+          filter: brightness(1.4);
+        }
+        100% {
+          transform: scale(0);
+          opacity: 0;
+        }
+      }
+      /* Subtle animated board lights */
+      .board-shell::after {
+        content: "";
+        position: absolute;
+        inset: 0.4rem;
+        background: radial-gradient(60% 100% at 50% 0%, rgba(96,165,250,0.12), rgba(14,165,233,0) 60%),
+                    radial-gradient(70% 120% at 100% 100%, rgba(244,114,182,0.08), rgba(244,114,182,0) 70%);
+        border-radius: 1rem;
+        pointer-events: none;
+        animation: boardGlow 2800ms ease-in-out infinite alternate;
+        mix-blend-mode: screen;
+      }
+      @keyframes boardGlow {
+        0% { opacity: 0.35; filter: hue-rotate(0deg) saturate(1); }
+        100% { opacity: 0.6; filter: hue-rotate(14deg) saturate(1.2); }
+      }
+      @media (max-width: 640px) {
+        .wrapper {
+          padding: 1.2rem;
+          border-radius: 1.2rem;
+        }
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        header h1 {
+          letter-spacing: 0.18em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper" role="presentation">
+      <header>
+        <div>
+          <h1>Cascade Candy Clash</h1>
+          <p>
+            Charge an 8×8 field of volatile sweets. Swap neighbors to detonate matches, trigger cascades, and hunt for
+            megascore combos while the board continuously refills.
+          </p>
+        </div>
+        <div class="hud">
+          <div class="stat">
+            <strong>Score</strong>
+            <span id="score">0</span>
+            <span class="subtle">+45 per candy &times; cascade multiplier</span>
+          </div>
+          <div class="stat">
+            <strong>Moves</strong>
+            <span id="moves">0</span>
+            <span class="subtle">Only valid swaps count</span>
+          </div>
+          <div class="stat">
+            <strong>Active Cascade</strong>
+            <span id="cascade">0×</span>
+            <span class="subtle">Resets when chain ends</span>
+          </div>
+          <div class="stat">
+            <strong>Peak Chain</strong>
+            <span id="longest">0×</span>
+            <span class="subtle">Personal best this run</span>
+          </div>
+        </div>
+      </header>
+      <div class="board-shell">
+        <canvas id="fx-canvas" class="fx-layer"></canvas>
+        <div class="board" id="candy-board" role="grid" aria-label="Candy grid"></div>
+      </div>
+      <div class="feed">
+        <h2>Combo Feed</h2>
+        <ul id="combo-feed" aria-live="polite"></ul>
+      </div>
+      <footer>
+        <div>
+          <strong>How to play</strong>
+          <div>Click two adjacent candies to swap. Invalid moves snap back. Match three or more to clear.</div>
+        </div>
+        <div>
+          <strong>Pro tip</strong>
+          <div>Focus on vertical triggers to stack gravitational cascades and build insane multipliers.</div>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (() => {
+        const root = document.currentScript.getRootNode();
+        const hostDocument = root.host?.ownerDocument || root;
+        const boardEl = root.getElementById('candy-board');
+        // Initialize effects canvas overlay
+        // Set up after querying board/container elements
+        
+        const scoreEl = root.getElementById('score');
+        const movesEl = root.getElementById('moves');
+        const cascadeEl = root.getElementById('cascade');
+        const longestEl = root.getElementById('longest');
+        const feedEl = root.getElementById('combo-feed');
+        const boardSize = 8;
+        const totalCells = boardSize * boardSize;
+        
+        const candyPalette = [
+          {
+            id: 'ember',
+            colors: ['#fb923c', '#f97316'],
+            glow: 'rgba(248, 113, 113, 0.6)',
+            glyph: '🍭',
+          },
+          {
+            id: 'berry',
+            colors: ['#f472b6', '#ec4899'],
+            glow: 'rgba(244, 114, 182, 0.55)',
+            glyph: '🍒',
+          },
+          {
+            id: 'citrus',
+            colors: ['#fde047', '#facc15'],
+            glow: 'rgba(250, 204, 21, 0.45)',
+            glyph: '🍋',
+          },
+          {
+            id: 'aurora',
+            colors: ['#38bdf8', '#6366f1'],
+            glow: 'rgba(59, 130, 246, 0.55)',
+            glyph: '🍬',
+          },
+          {
+            id: 'jade',
+            colors: ['#16a34a', '#166534'],
+            glow: 'rgba(22, 163, 74, 0.48)',
+            glyph: '🍏',
+          },
+          {
+            id: 'void',
+            colors: ['#a855f7', '#7c3aed'],
+            glow: 'rgba(168, 85, 247, 0.55)',
+            glyph: '🌌',
+          },
+        ];
+        
+        const paletteById = Object.fromEntries(candyPalette.map((candy) => [candy.id, candy]));
+        
+        const state = {
+          board: [],
+          score: 0,
+          moves: 0,
+          activeCascade: 0,
+          longestCascade: 0,
+          selected: null,
+          busy: false,
+          lastSwap: null,
+        };
+        
+        const randomCandyId = () => {
+          const index = Math.floor(Math.random() * candyPalette.length);
+          return candyPalette[index].id;
+        };
+        
+        const indexToPoint = (index) => ({
+          row: Math.floor(index / boardSize),
+          col: index % boardSize,
+        });
+        
+        const pointToIndex = (row, col) => row * boardSize + col;
+        
+        const isAdjacent = (indexA, indexB) => {
+          const { row: rowA, col: colA } = indexToPoint(indexA);
+          const { row: rowB, col: colB } = indexToPoint(indexB);
+          const rowDelta = Math.abs(rowA - rowB);
+          const colDelta = Math.abs(colA - colB);
+          return (rowDelta === 1 && colDelta === 0) || (rowDelta === 0 && colDelta === 1);
+        };
+        
+        const wouldCreateMatch = (row, col, candidateId) => {
+          let streak = 1;
+          for (let offset = 1; offset <= 2; offset += 1) {
+            const neighborCol = col - offset;
+            if (neighborCol < 0) break;
+            const neighborType = state.board[pointToIndex(row, neighborCol)]?.type;
+            if (neighborType === candidateId) streak += 1;
+            else break;
+          }
+          if (streak >= 3) return true;
+          
+          streak = 1;
+          for (let offset = 1; offset <= 2; offset += 1) {
+            const neighborRow = row - offset;
+            if (neighborRow < 0) break;
+            const neighborType = state.board[pointToIndex(neighborRow, col)]?.type;
+            if (neighborType === candidateId) streak += 1;
+            else break;
+          }
+          return streak >= 3;
+        };
+        
+        const applyCandyStyle = (cell, candyId, options = {}) => {
+          const { animate = false } = options;
+          const { element } = cell;
+          element.classList.remove('selected', 'invalid', 'clearing', 'spawn', 'upgrade', 'blast', 'bomb', 'orb', 'cross', 'hint');
+          cell.special = null;
+          
+          if (!candyId) {
+            cell.type = null;
+            element.classList.add('empty');
+            element.dataset.candy = '';
+            element.style.background = 'rgba(15, 23, 42, 0.5)';
+            element.style.boxShadow = 'inset 0 0 0.5rem rgba(30, 64, 175, 0.35)';
+            element.innerHTML = '';
+            return;
+          }
+          
+          const candy = paletteById[candyId];
+          cell.type = candyId;
+          element.classList.remove('empty');
+          element.dataset.candy = candyId;
+          element.style.background = `linear-gradient(135deg, ${candy.colors[0]}, ${candy.colors[1]})`;
+          element.style.boxShadow = `inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.25), 0 0.45rem 1.15rem ${candy.glow}`;
+          element.innerHTML = `<span class="glyph">${candy.glyph}</span>`;
+          
+          if (animate) {
+            element.classList.add('spawn');
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                element.classList.remove('spawn');
+              });
+            });
+          }
+        };
+        
+        const applySpecialStyle = (cell, special, baseType) => {
+          const { element } = cell;
+          const candy = paletteById[baseType || cell.type];
+          cell.type = null;
+          cell.special = special;
+          element.classList.remove('empty', 'hint', 'selected', 'invalid', 'clearing', 'spawn', 'upgrade', 'blast', 'bomb', 'orb', 'cross');
+          element.dataset.candy = '';
+          
+          if (special === 'bomb') {
+            element.classList.add('bomb');
+            element.style.background = `linear-gradient(135deg, #fb7185, #ef4444)`;
+            element.style.boxShadow = `0 0.6rem 1.4rem rgba(239,68,68,0.55), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35)`;
+            element.innerHTML = `<span class="glyph">💣</span>`;
+            element.classList.add('upgrade');
+          } else if (special === 'orb') {
+            element.classList.add('orb');
+            element.style.background = `linear-gradient(135deg, #f0abfc, #60a5fa, #34d399)`;
+            element.style.boxShadow = `0 0.7rem 1.6rem rgba(244, 114, 182, 0.55), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35)`;
+            element.innerHTML = `<span class="glyph">🌈</span>`;
+            element.classList.add('upgrade');
+          } else if (special === 'cross') {
+            element.classList.add('cross');
+            element.style.background = 'linear-gradient(135deg, #fde047, #f59e0b)';
+            element.style.boxShadow = '0 0.7rem 1.6rem rgba(250, 204, 21, 0.55), inset 0 -0.35rem 0.5rem rgba(15, 23, 42, 0.35)';
+            element.innerHTML = '<span class="glyph">✚</span>';
+            element.classList.add('upgrade');
+          }
+        };
+        
+        const createCell = (index) => {
+          const cell = {
+            index,
+            type: null,
+            special: null,
+            element: hostDocument.createElement('button'),
+          };
+          const { row, col } = indexToPoint(index);
+          cell.element.className = 'candy empty';
+          cell.element.type = 'button';
+          cell.element.dataset.index = String(index);
+          cell.element.setAttribute('aria-label', `Candy at row ${row + 1}, column ${col + 1}`);
+          cell.element.setAttribute('tabindex', '0');
+          boardEl.appendChild(cell.element);
+          state.board.push(cell);
+          return cell;
+        };
+        
+        const updateHud = () => {
+          scoreEl.textContent = state.score.toLocaleString();
+          movesEl.textContent = state.moves;
+          cascadeEl.textContent = `${state.activeCascade}×`;
+          longestEl.textContent = `${state.longestCascade}×`;
+        };
+        
+        const logCombo = (matchedCount, cascadeLevel) => {
+          if (!feedEl) return;
+          const entry = hostDocument.createElement('li');
+          entry.innerHTML = `<span>${cascadeLevel}×</span> Cleared ${matchedCount} candies`;
+          feedEl.prepend(entry);
+          while (feedEl.childElementCount > 4) {
+            feedEl.lastElementChild?.remove();
+          }
+        };
+        
+        const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        
+        const findMatches = () => {
+          const matched = new Set();
+          const runs = [];
+          
+          // Horizontal matches
+          for (let row = 0; row < boardSize; row += 1) {
+            let runStart = 0;
+            for (let col = 1; col <= boardSize; col += 1) {
+              const prevIndex = pointToIndex(row, col - 1);
+              const prevType = state.board[prevIndex].type;
+              const currentType = col < boardSize ? state.board[pointToIndex(row, col)].type : null;
+              
+              if (!prevType || prevType !== currentType) {
+                const runLength = col - runStart;
+                if (prevType && runLength >= 3) {
+                  const indices = [];
+                  for (let offset = 0; offset < runLength; offset += 1) {
+                    const idx = pointToIndex(row, runStart + offset);
+                    matched.add(idx);
+                    indices.push(idx);
+                  }
+                  runs.push({ direction: 'h', type: prevType, indices });
+                }
+                runStart = col;
+              }
+            }
+          }
+          
+          // Vertical matches
+          for (let col = 0; col < boardSize; col += 1) {
+            let runStart = 0;
+            for (let row = 1; row <= boardSize; row += 1) {
+              const prevIndex = pointToIndex(row - 1, col);
+              const prevType = state.board[prevIndex].type;
+              const currentType = row < boardSize ? state.board[pointToIndex(row, col)].type : null;
+              
+              if (!prevType || prevType !== currentType) {
+                const runLength = row - runStart;
+                if (prevType && runLength >= 3) {
+                  const indices = [];
+                  for (let offset = 0; offset < runLength; offset += 1) {
+                    const idx = pointToIndex(runStart + offset, col);
+                    matched.add(idx);
+                    indices.push(idx);
+                  }
+                  runs.push({ direction: 'v', type: prevType, indices });
+                }
+                runStart = row;
+              }
+            }
+          }
+          
+          return { matched, runs };
+        };
+        
+        const collapseColumns = () => {
+          for (let col = 0; col < boardSize; col += 1) {
+            const survivors = [];
+            for (let row = 0; row < boardSize; row += 1) {
+              const cell = state.board[pointToIndex(row, col)];
+              if (cell.type || cell.special) {
+                survivors.push({ type: cell.type, special: cell.special });
+              }
+            }
+            for (let row = boardSize - 1; row >= 0; row -= 1) {
+              const index = pointToIndex(row, col);
+              const cell = state.board[index];
+              const next = survivors.pop() ?? { type: null, special: null };
+              if (next.type !== cell.type || next.special !== cell.special) {
+                if (next.special) applySpecialStyle(cell, next.special, next.type);
+                else applyCandyStyle(cell, next.type);
+              }
+            }
+          }
+        };
+        
+        const refillBoard = () => {
+          for (let index = 0; index < totalCells; index += 1) {
+            const cell = state.board[index];
+            if (cell.type || cell.special) continue;
+            const { row, col } = indexToPoint(index);
+            let candidate = randomCandyId();
+            let safety = 0;
+            while (wouldCreateMatch(row, col, candidate) && safety < 12) {
+              candidate = randomCandyId();
+              safety += 1;
+            }
+            applyCandyStyle(cell, candidate, { animate: true });
+            try {
+              const target = cellCenter(index);
+              const startY = Math.max(-10, target.y - 60 - Math.random() * 30);
+              burstParticles(target.x, startY, { count: 6, speed: 180, life: 0.45, gravity: 360, colors: ['#f472b6','#60a5fa','#34d399','#fde047'] });
+            } catch {}
+          }
+        };
+        
+        const resolveBoard = async (cascadeLevel) => {
+          const { matched: baseMatched, runs } = findMatches();
+          if (!baseMatched.size) {
+            if (cascadeLevel === 1) {
+              state.activeCascade = 0;
+              updateHud();
+            }
+            return false;
+          }
+          
+          const expanded = new Set(baseMatched);
+          baseMatched.forEach((index) => {
+            const cell = state.board[index];
+            if (cell.special === 'bomb') {
+              const { row, col } = indexToPoint(index);
+              for (let dr = -1; dr <= 1; dr += 1) {
+                for (let dc = -1; dc <= 1; dc += 1) {
+                  const rr = row + dr;
+                  const cc = col + dc;
+                  if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                  expanded.add(pointToIndex(rr, cc));
+                }
+              }
+            }
+          });
+          
+          // Bomb chain reaction within match resolution: if a bomb is blasted by another bomb, it also explodes
+          (function chainFromBlastedBombs() {
+            const visited = new Set();
+            const queue = [];
+            expanded.forEach((idx) => {
+              if (!baseMatched.has(idx)) {
+                const c = state.board[idx];
+                if (c?.special === 'bomb') {
+                  visited.add(idx);
+                  queue.push(idx);
+                }
+              }
+            });
+            while (queue.length) {
+              const bIdx = queue.shift();
+              const { row, col } = indexToPoint(bIdx);
+              for (let dr = -1; dr <= 1; dr += 1) {
+                for (let dc = -1; dc <= 1; dc += 1) {
+                  const rr = row + dr;
+                  const cc = col + dc;
+                  if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                  const nIdx = pointToIndex(rr, cc);
+                  if (!expanded.has(nIdx)) {
+                    expanded.add(nIdx);
+                  }
+                  const nCell = state.board[nIdx];
+                  if (nCell?.special === 'bomb' && !visited.has(nIdx)) {
+                    visited.add(nIdx);
+                    queue.push(nIdx);
+                  }
+                }
+              }
+            }
+          })();
+          
+          const blasted = new Set(Array.from(expanded).filter((i) => !baseMatched.has(i)));
+          
+          const bombPlacements = [];
+          const lastA = state.lastSwap?.a;
+          const lastB = state.lastSwap?.b;
+          // Cross/T intersections (horizontal >=3 meets vertical >=3 of same type)
+          const crossPlacements = [];
+          const horizRuns = runs.filter((r) => r.direction === 'h' && r.indices.length >= 3);
+          const vertRuns = runs.filter((r) => r.direction === 'v' && r.indices.length >= 3);
+          horizRuns.forEach((h) => {
+            vertRuns.forEach((v) => {
+              if (h.type !== v.type) return;
+              const vset = new Set(v.indices);
+              const intersection = h.indices.filter((i) => vset.has(i));
+              if (intersection.length) {
+                let pivot = intersection.find((i) => i === lastA || i === lastB);
+                if (pivot == null) pivot = intersection[Math.floor(intersection.length / 2)];
+                crossPlacements.push({ index: pivot, type: h.type, special: 'cross' });
+              }
+            });
+          });
+          // Deduplicate by index (keep last)
+          const crossByIndex = new Map(crossPlacements.map((p) => [p.index, p]));
+          const crossList = Array.from(crossByIndex.values());
+          runs.forEach((run) => {
+            if (run.indices.length >= 4) {
+              let pivot = run.indices.find((i) => i === lastB || i === lastA);
+              if (pivot == null) {
+                pivot = run.indices[Math.floor(run.indices.length / 2)];
+              }
+              bombPlacements.push({
+                index: pivot,
+                type: run.type,
+                special: run.indices.length >= 5 ? 'orb' : 'bomb',
+              });
+            }
+          });
+          
+          state.activeCascade = cascadeLevel;
+          state.longestCascade = Math.max(state.longestCascade, cascadeLevel);
+          updateHud();
+          try {
+            if (cascadeLevel > 1) {
+              const r = boardRect();
+              addText(r.width / 2, 24, `Cascade x${cascadeLevel}!`, { color: '#f0abfc', size: 26, dy: 40, duration: 900, pop: 0.6 });
+              playSfx('cascade', { cascadeLevel });
+            }
+          } catch {}
+          
+          expanded.forEach((index) => {
+            const cell = state.board[index];
+            cell.element.classList.add('clearing');
+            if (blasted.has(index)) cell.element.classList.add('blast');
+            // FX: subtle sparkle on matched tiles
+            try {
+              if (baseMatched.has(index)) {
+                const { x, y } = cellCenter(index);
+                burstParticles(x, y, { count: 6, speed: 160, life: 0.35, gravity: 200 });
+              }
+            } catch {}
+          });
+          
+          state.score += expanded.size * 45 * cascadeLevel;
+          updateHud();
+          logCombo(expanded.size, cascadeLevel);
+          playSfx(baseMatched.size !== expanded.size ? 'bomb' : 'match', { cascadeLevel, power: expanded.size });
+          try {
+            if (expanded.size >= 10) {
+              kickShake(Math.min(12, 4 + expanded.size * 0.12), 200 + Math.min(200, expanded.size * 4));
+              pulseZoom(0.05, 220);
+              flashScreen('rgba(255,255,255,0.85)', 120, 0.5);
+              const r = boardRect();
+              addRing(r.width/2, r.height/2, { r0: 16, r1: 160, width: 10, color: 'rgba(244,114,182,0.9)', duration: 240 });
+              playSfx('mega', { cascadeLevel, power: expanded.size });
+            }
+          } catch {}
+          await delay(240);          const crossIndexSet = new Set(crossList.map((p) => p.index));
+          const filteredBombPlacements = bombPlacements.filter((b) => !crossIndexSet.has(b.index));
+          const placements = filteredBombPlacements.concat(crossList);
+          const placementIndexSet = new Set(placements.map((p) => p.index));
+          expanded.forEach((index) => {
+            const cell = state.board[index];
+            if (placementIndexSet.has(index)) {
+              const bp = placements.find((p) => p.index === index);
+              applySpecialStyle(cell, bp?.special || 'bomb', bp?.type || cell.type);
+              try {
+                const { x, y } = cellCenter(index);
+                if (bp?.special === 'bomb') {
+                  burstParticles(x, y, { count: 26, speed: 260, life: 0.55 });
+                  addRing(x, y, { r0: 8, r1: 100, width: 6, color: 'rgba(248,113,113,0.9)', duration: 220 });
+                } else if (bp?.special === 'orb') {
+                  burstParticles(x, y, { count: 30, speed: 280, life: 0.6, colors: ['#f0abfc','#60a5fa','#34d399','#fde047'] });
+                  addRing(x, y, { r0: 8, r1: 110, width: 6, color: 'rgba(96,165,250,0.9)', duration: 240 });
+                } else if (bp?.special === 'cross') {
+                  burstParticles(x, y, { count: 22, speed: 240, life: 0.5, colors: ['#fde047','#f472b6','#60a5fa'] });
+                  addRing(x, y, { r0: 8, r1: 110, width: 6, color: 'rgba(250,204,21,0.9)', duration: 220 });
+                }
+                playSfx('upgrade');
+              } catch {}
+            } else {
+              applyCandyStyle(cell, null);
+            }
+            cell.element.classList.remove('clearing');
+            cell.element.classList.remove('blast');
+          });
+          
+          await delay(80);
+          collapseColumns();
+          await delay(140);
+          refillBoard();
+          await delay(160);
+          await resolveBoard(cascadeLevel + 1);
+          return true;
+        };
+        
+        const deselect = () => {
+          if (state.selected) {
+            state.selected.element.classList.remove('selected');
+            state.selected = null;
+          }
+        };
+        
+        const flashInvalid = (first, second) => {
+          first.element.classList.add('invalid');
+          second.element.classList.add('invalid');
+          setTimeout(() => {
+            first.element.classList.remove('invalid');
+            second.element.classList.remove('invalid');
+          }, 320);
+          try { kickShake(2.5, 120); } catch {}
+        };
+        
+        const audio = { ctx: null, bus: null, fxSend: null, fxDelay: null };
+        const fx = { canvas: null, ctx: null, particles: [], beams: [], rings: [], texts: [], flashes: [], lastResize: 0, shakeEnd: 0, shakeMag: 0, zoomEnd: 0, zoomMag: 0 };
+        // Initialize effects once root elements exist
+        initFx();
+
+        const initAudio = () => {
+          if (audio.ctx) return;
+          try {
+            audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const ctx = audio.ctx;
+            const busGain = ctx.createGain();
+            busGain.gain.value = 0.9;
+            const comp = ctx.createDynamicsCompressor();
+            comp.threshold.value = -24;
+            comp.knee.value = 30;
+            comp.ratio.value = 12;
+            comp.attack.value = 0.003;
+            comp.release.value = 0.25;
+            // Simple reverb send
+            const fxSendGain = ctx.createGain();
+            fxSendGain.gain.value = 0.22;
+            const convolver = ctx.createConvolver();
+            const buildImpulse = (seconds = 1.2, decay = 3.2) => {
+              const rate = ctx.sampleRate;
+              const len = Math.floor(rate * seconds);
+              const impulse = ctx.createBuffer(2, len, rate);
+              for (let ch = 0; ch < 2; ch += 1) {
+                const data = impulse.getChannelData(ch);
+                for (let i = 0; i < len; i += 1) {
+                  const t = i / len;
+                  data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, decay);
+                }
+              }
+              return impulse;
+            };
+            convolver.buffer = buildImpulse(1.2, 3.2);
+            fxSendGain.connect(convolver);
+            convolver.connect(busGain);
+            // Ping-pong-ish delay
+            const fxDelay = ctx.createGain();
+            fxDelay.gain.value = 0.16;
+            const delayL = ctx.createDelay(1.0); delayL.delayTime.value = 0.18;
+            const delayR = ctx.createDelay(1.0); delayR.delayTime.value = 0.24;
+            const merger = ctx.createChannelMerger(2);
+            const splitter = ctx.createChannelSplitter(2);
+            fxDelay.connect(splitter);
+            splitter.connect(delayL, 0); splitter.connect(delayR, 1);
+            delayL.connect(merger, 0, 0); delayR.connect(merger, 0, 1);
+            merger.connect(busGain);
+            busGain.connect(comp);
+            comp.connect(ctx.destination);
+            audio.bus = busGain;
+            audio.fxSend = fxSendGain;
+            audio.fxDelay = fxDelay;
+          } catch {}
+        };
+
+        function initFx() {
+          if (fx.canvas) return;
+          fx.canvas = root.getElementById('fx-canvas');
+          if (!fx.canvas) return;
+          fx.ctx = fx.canvas.getContext('2d');
+          const resize = () => {
+            const shell = fx.canvas.parentElement;
+            const rect = shell.getBoundingClientRect();
+            fx.canvas.width = Math.floor(rect.width);
+            fx.canvas.height = Math.floor(rect.height);
+          };
+          resize();
+          const ro = new ResizeObserver(() => {
+            const now = performance.now();
+            if (now - fx.lastResize > 50) { resize(); fx.lastResize = now; }
+          });
+          ro.observe(fx.canvas.parentElement);
+          requestAnimationFrame(tickFx);
+        }
+
+        function tickFx() {
+          if (!fx.ctx || !fx.canvas) return;
+          const ctx = fx.ctx;
+          ctx.clearRect(0, 0, fx.canvas.width, fx.canvas.height);
+          // Screen shake via shell transform
+          try {
+            const shell = fx.canvas.parentElement;
+            const nowMs = performance.now();
+            let dx = 0, dy = 0, scale = 1;
+            if (nowMs < fx.shakeEnd) {
+              const t = (fx.shakeEnd - nowMs) / 180;
+              const mag = fx.shakeMag * Math.max(0, t);
+              dx = (Math.random() * 2 - 1) * mag;
+              dy = (Math.random() * 2 - 1) * mag;
+            }
+            if (nowMs < fx.zoomEnd) {
+              const tz = (fx.zoomEnd - nowMs) / 200;
+              scale = 1 + fx.zoomMag * Math.max(0, tz);
+            }
+            if (dx || dy || scale !== 1) shell.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+            else if (shell.style.transform) shell.style.transform = '';
+          } catch {}
+          const now = performance.now();
+          // beams
+          fx.beams = fx.beams.filter((b) => now < b.end);
+          for (const b of fx.beams) {
+            const p = Math.min(1, (now - b.start) / b.duration);
+            const w = b.baseWidth * (1 - p) + 2;
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const grad = ctx.createLinearGradient(b.x1, b.y1, b.x2, b.y2);
+            grad.addColorStop(0, b.colorStart);
+            grad.addColorStop(1, b.colorEnd);
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = w;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            const ex = b.x1 + (b.x2 - b.x1) * p;
+            const ey = b.y1 + (b.y2 - b.y1) * p;
+            ctx.moveTo(b.x1, b.y1);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+            ctx.restore();
+          }
+          // particles
+          fx.particles = fx.particles.filter((p) => p.life > 0);
+          for (const p of fx.particles) {
+            const t = Math.min(32, p.last ? now - p.last : 16) / 1000;
+            p.last = now;
+            p.vy += (p.g ?? 0) * t;
+            p.x += p.vx * t;
+            p.y += p.vy * t;
+            p.life -= t;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+          // floating texts
+          const nowTxt = performance.now();
+          fx.texts = fx.texts.filter((t) => nowTxt < t.end);
+          for (const t of fx.texts) {
+            const p = Math.min(1, (nowTxt - t.start) / t.duration);
+            const y = t.y - p * t.dy;
+            const x = t.x + p * t.dx;
+            const scale = 1 + (t.pop ?? 0.4) * Math.sin(Math.min(Math.PI, p * Math.PI));
+            ctx.save();
+            ctx.globalAlpha = (1 - p) * (t.alpha ?? 1);
+            ctx.fillStyle = t.color ?? '#f9a8d4';
+            ctx.font = `${t.size ?? 24}px system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeStyle = 'rgba(2,6,23,0.6)';
+            ctx.lineWidth = 3;
+            ctx.strokeText(t.text, x, y);
+            ctx.fillText(t.text, x, y);
+            ctx.restore();
+          }
+          // rings
+          const now2 = performance.now();
+          fx.rings = fx.rings.filter((r) => now2 < r.end);
+          for (const r of fx.rings) {
+            const pr = Math.min(1, (now2 - r.start) / r.duration);
+            const radius = r.r0 + (r.r1 - r.r0) * pr;
+            ctx.save();
+            ctx.globalAlpha = (1 - pr) * r.alpha;
+            ctx.strokeStyle = r.color;
+            ctx.lineWidth = r.width * (1 - pr * 0.7);
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+          // screen flashes
+          const now3 = performance.now();
+          fx.flashes = fx.flashes.filter((f) => now3 < f.end);
+          for (const f of fx.flashes) {
+            const pr = Math.min(1, (now3 - f.start) / f.duration);
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = (1 - pr) * (f.alpha ?? 0.6);
+            const grad = ctx.createRadialGradient(fx.canvas.width/2, fx.canvas.height/2, 0, fx.canvas.width/2, fx.canvas.height/2, Math.max(fx.canvas.width, fx.canvas.height));
+            grad.addColorStop(0, f.color ?? 'rgba(255,255,255,0.8)');
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,fx.canvas.width, fx.canvas.height);
+            ctx.restore();
+          }
+          requestAnimationFrame(tickFx);
+        }
+
+        const boardRect = () => {
+          const shell = boardEl.parentElement; // .board-shell
+          return shell.getBoundingClientRect();
+        };
+
+        const cellCenter = (index) => {
+          const el = state.board[index]?.element;
+          const rect = el.getBoundingClientRect();
+          const r = boardRect();
+          return { x: rect.left - r.left + rect.width / 2, y: rect.top - r.top + rect.height / 2 };
+        };
+
+        const addBeam = (x1, y1, x2, y2, opts = {}) => {
+          if (!fx.ctx) return;
+          const now = performance.now();
+          fx.beams.push({
+            x1, y1, x2, y2,
+            colorStart: opts.colorStart ?? 'rgba(96,165,250,0.95)',
+            colorEnd: opts.colorEnd ?? 'rgba(244,114,182,0.95)',
+            baseWidth: opts.baseWidth ?? 10,
+            start: now,
+            duration: opts.duration ?? 220,
+            end: now + (opts.duration ?? 220),
+          });
+        };
+
+        const addTrailSparks = (x1, y1, x2, y2, opts = {}) => {
+          if (!fx.ctx) return;
+          const steps = opts.steps ?? 8;
+          for (let i = 0; i <= steps; i += 1) {
+            const t = i / steps;
+            const x = x1 + (x2 - x1) * t;
+            const y = y1 + (y2 - y1) * t;
+            burstParticles(x, y, { count: 2, speed: 140, life: 0.25, gravity: 200, colors: ['#f0abfc', '#60a5fa', '#fde047'] });
+          }
+        };
+
+        const burstParticles = (x, y, opts = {}) => {
+          if (!fx.ctx) return;
+          const count = opts.count ?? 30;
+          const speed = opts.speed ?? 260;
+          const colors = opts.colors ?? ['#f472b6', '#60a5fa', '#34d399', '#fde047'];
+          for (let i = 0; i < count; i += 1) {
+            const a = Math.random() * Math.PI * 2;
+            const m = (0.4 + Math.random() * 1) * speed;
+            fx.particles.push({
+              x, y,
+              vx: Math.cos(a) * m,
+              vy: Math.sin(a) * m,
+              size: 2 + Math.random() * 3,
+              color: colors[Math.floor(Math.random() * colors.length)],
+              life: (opts.life ?? 0.6) * (0.7 + Math.random() * 0.6),
+              maxLife: opts.life ?? 0.6,
+              g: opts.gravity ?? 320,
+              last: performance.now(),
+            });
+          }
+        };
+
+        const addText = (x, y, text, opts = {}) => {
+          if (!fx.ctx) return;
+          const now = performance.now();
+          fx.texts.push({
+            x, y,
+            dx: opts.dx ?? 0,
+            dy: opts.dy ?? 80,
+            text,
+            color: opts.color ?? '#f9a8d4',
+            size: opts.size ?? 24,
+            pop: opts.pop ?? 0.4,
+            alpha: opts.alpha ?? 1,
+            start: now,
+            duration: opts.duration ?? 700,
+            end: now + (opts.duration ?? 700),
+          });
+        };
+
+        const addRing = (x, y, opts = {}) => {
+          if (!fx.ctx) return;
+          const now = performance.now();
+          fx.rings.push({
+            x, y,
+            r0: opts.r0 ?? 10,
+            r1: opts.r1 ?? 110,
+            width: opts.width ?? 6,
+            color: opts.color ?? 'rgba(250,204,21,0.9)',
+            alpha: opts.alpha ?? 0.9,
+            start: now,
+            duration: opts.duration ?? 260,
+            end: now + (opts.duration ?? 260),
+          });
+        };
+
+        const kickShake = (magnitude = 6, duration = 180) => {
+          fx.shakeMag = magnitude;
+          fx.shakeEnd = performance.now() + duration;
+        };
+
+        const pulseZoom = (magnitude = 0.04, duration = 220) => {
+          fx.zoomMag = magnitude;
+          fx.zoomEnd = performance.now() + duration;
+        };
+
+        const flashScreen = (color = 'rgba(255,255,255,0.9)', duration = 160, alpha = 0.6) => {
+          if (!fx.ctx) return;
+          const now = performance.now();
+          fx.flashes.push({ color, start: now, duration, end: now + duration, alpha });
+        };
+
+        const playTone = (freq = 440, duration = 0.08, type = 'sine', gain = 0.05, pan = 0) => {
+          if (!audio.ctx) return;
+          const ctx = audio.ctx;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+          osc.type = type;
+          osc.frequency.value = freq;
+          g.gain.value = gain;
+          const dest = audio.bus ?? ctx.destination;
+          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); if (audio.fxDelay) g.connect(audio.fxDelay); }
+          else { osc.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); if (audio.fxDelay) g.connect(audio.fxDelay); }
+          const now = ctx.currentTime;
+          g.gain.setValueAtTime(gain, now);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+          osc.start(now);
+          osc.stop(now + duration + 0.02);
+        };
+        const sweepTone = (f0 = 800, f1 = 300, duration = 0.12, type = 'square', gain = 0.05, pan = 0) => {
+          if (!audio.ctx) return;
+          const ctx = audio.ctx;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+          osc.type = type;
+          g.gain.value = gain;
+          const dest = audio.bus ?? ctx.destination;
+          if (p) { p.pan.value = pan; osc.connect(g); g.connect(p); p.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); if (audio.fxDelay) g.connect(audio.fxDelay); }
+          else { osc.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); if (audio.fxDelay) g.connect(audio.fxDelay); }
+          const now = ctx.currentTime;
+          osc.frequency.setValueAtTime(f0, now);
+          osc.frequency.linearRampToValueAtTime(f1, now + duration * 0.85);
+          g.gain.setValueAtTime(gain, now);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+          osc.start(now);
+          osc.stop(now + duration + 0.02);
+        };
+
+        const playNoise = (duration = 0.2, gain = 0.05, type = 'lowpass') => {
+          if (!audio.ctx) return;
+          const ctx = audio.ctx;
+          const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+          const src = ctx.createBufferSource();
+          src.buffer = buffer;
+          const g = ctx.createGain();
+          g.gain.value = gain;
+          const filt = ctx.createBiquadFilter();
+          filt.type = type;
+          filt.frequency.value = 800;
+          const dest = audio.bus ?? ctx.destination;
+          src.connect(filt); filt.connect(g); g.connect(dest); if (audio.fxSend) g.connect(audio.fxSend); if (audio.fxDelay) g.connect(audio.fxDelay);
+          const now = ctx.currentTime;
+          g.gain.setValueAtTime(gain, now);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+          src.start(now);
+          src.stop(now + duration + 0.02);
+        };
+
+        const playSfx = (kind, opts = {}) => {
+          initAudio();
+          const level = Math.max(1, opts.cascadeLevel ?? state.activeCascade ?? 1);
+          const boost = Math.min(0.12, 0.02 * (level - 1));
+          const power = Math.max(0, Math.min(1, (opts.power ?? 0) / 36));
+          const pan = (Math.random() * 2 - 1) * 0.2;
+          switch (kind) {
+            case 'swap':
+              playTone(520 + Math.random() * 15, 0.05, 'triangle', 0.04 + boost * 0.5, pan);
+              break;
+            case 'invalid':
+              playTone(200, 0.09, 'sawtooth', 0.05 + boost, 0);
+              break;
+            case 'match':
+              playTone(700 + Math.random() * 30, 0.07, 'sine', 0.05 + boost, pan);
+              setTimeout(() => playTone(880 + Math.random() * 30, 0.06, 'sine', 0.045 + boost, -pan), 60);
+              if (level >= 3) setTimeout(() => playTone(1100 + Math.random() * 25, 0.06, 'triangle', 0.035 + boost * 0.6, pan * -0.5), 90);
+              break;
+            case 'bomb':
+              playNoise(0.22, 0.08 + boost * 1.1 + power * 0.06, 'lowpass');
+              setTimeout(() => playTone(90 + power * 40, 0.22, 'sine', 0.09 + boost * 0.7, pan * 0.3), 20);
+              setTimeout(() => sweepTone(300, 90, 0.18, 'sawtooth', 0.03 + power * 0.04, -pan), 40);
+              break;
+            case 'laser':
+              sweepTone(1600, 600, 0.13, 'square', 0.04 + boost, pan);
+              setTimeout(() => playTone(1200, 0.06, 'triangle', 0.03 + boost * 0.5, -pan), 40);
+              break;
+            case 'orb-bonus':
+              // rainbow mega combo: whoosh + sparkle + thump
+              sweepTone(2000, 500, 0.22, 'sawtooth', 0.05 + boost, pan);
+              setTimeout(() => playNoise(0.18, 0.06 + boost, 'lowpass'), 40);
+              setTimeout(() => playTone(960, 0.08, 'sine', 0.06 + boost, -pan * 0.5), 120);
+              break;
+            case 'upgrade':
+              playTone(900, 0.06, 'sine', 0.05 + boost, 0);
+              setTimeout(() => playTone(1200, 0.06, 'triangle', 0.05 + boost, 0), 70);
+              break;
+            case 'cascade':
+              for (let i = 0; i < Math.min(4, level); i += 1) {
+                setTimeout(() => playTone(700 + i * 140, 0.05, 'square', 0.04 + boost, (Math.random() * 2 - 1) * 0.2), i * 60);
+              }
+              break;
+            case 'mega':
+              // layered hit: sub + mid + sparkle
+              playNoise(0.2, 0.08 + boost, 'lowpass');
+              setTimeout(() => playTone(120, 0.22, 'sine', 0.09 + boost, 0), 10);
+              setTimeout(() => sweepTone(1500, 400, 0.18, 'square', 0.05 + boost, 0), 80);
+              setTimeout(() => playTone(1800, 0.06, 'triangle', 0.04 + boost, 0), 170);
+              break;
+          }
+        };
+        
+        const swapCandies = (cellA, cellB) => {
+          const temp = { type: cellA.type, special: cellA.special };
+          if (cellB.special) applySpecialStyle(cellA, cellB.special, cellB.type);
+          else applyCandyStyle(cellA, cellB.type);
+          if (temp.special) applySpecialStyle(cellB, temp.special, temp.type);
+          else applyCandyStyle(cellB, temp.type);
+        };
+        
+        const attemptSwap = async (origin, target) => {
+          if (state.busy) return false;
+          state.busy = true;
+          state.lastSwap = { a: origin.index, b: target.index };
+          playSfx('swap');
+          
+          const wasBombA = origin.special === 'bomb';
+          const wasBombB = target.special === 'bomb';
+          const wasOrbA = origin.special === 'orb';
+          const wasCrossA = origin.special === 'cross';
+          const wasCrossB = target.special === 'cross';
+          const wasOrbB = target.special === 'orb';
+          const otherTypeForOrb = wasOrbA ? target.type : wasOrbB ? origin.type : null;
+          
+          swapCandies(origin, target);
+          try {
+            const a = cellCenter(origin.index);
+            const b = cellCenter(target.index);
+            addBeam(a.x, a.y, b.x, b.y, { baseWidth: 12, duration: 240 });
+            addTrailSparks(a.x, a.y, b.x, b.y, { steps: 10 });
+          } catch {}
+          
+          const crossAfterIndex = wasCrossA ? target.index : wasCrossB ? origin.index : null;
+          const bombAfterIndex = wasBombA ? target.index : wasBombB ? origin.index : null;
+          const orbAfterIndex = wasOrbA ? target.index : wasOrbB ? origin.index : null;
+
+          // Rainbow + Bonus (bomb or cross): apply bonus to 10 random tiles
+          const detonateOrbCombo = async (orbIdx, kind, otherIdx) => {
+            if (orbIdx == null) return;
+            try { kickShake(12, 320); pulseZoom(0.06, 260); flashScreen('rgba(255,255,255,0.95)', 160, 0.6); } catch {}
+            const candidates = [];
+            for (let i = 0; i < totalCells; i += 1) {
+              if (state.board[i].type) candidates.push(i); // only normal candies
+            }
+            candidates.sort(() => Math.random() - 0.5);
+            const targets = candidates.slice(0, Math.min(10, candidates.length));
+            const affected = new Set();
+            if (otherIdx != null) affected.add(otherIdx);
+            affected.add(orbIdx);
+            let sx = 0, sy = 0;
+            try { const c = cellCenter(orbIdx); sx = c.x; sy = c.y; } catch {}
+            targets.forEach((ti, idx) => {
+              try { const { x: tx, y: ty } = cellCenter(ti); setTimeout(() => addBeam(sx, sy, tx, ty, { baseWidth: 10, duration: 280 }), idx * 40); } catch {}
+            });
+            if (kind === 'bomb') {
+              for (const ti of targets) {
+                const { row, col } = indexToPoint(ti);
+                for (let dr = -1; dr <= 1; dr += 1) {
+                  for (let dc = -1; dc <= 1; dc += 1) {
+                    const rr = row + dr;
+                    const cc = col + dc;
+                    if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                    affected.add(pointToIndex(rr, cc));
+                  }
+                }
+              }
+            } else if (kind === 'cross') {
+              for (const ti of targets) {
+                const { row, col } = indexToPoint(ti);
+                for (let c = 0; c < boardSize; c += 1) affected.add(pointToIndex(row, c));
+                for (let r = 0; r < boardSize; r += 1) affected.add(pointToIndex(r, col));
+              }
+            }
+            affected.forEach((i) => {
+              const c = state.board[i];
+              c.element.classList.add('clearing', 'blast');
+              try { const { x, y } = cellCenter(i); burstParticles(x, y, { count: 18, speed: 280, life: 0.5 }); } catch {}
+            });
+            try { addRing(sx, sy, { r0: 12, r1: 150, width: 9, color: 'rgba(244,114,182,0.95)', duration: 300 }); } catch {}
+            playSfx('orb-bonus', { cascadeLevel: state.activeCascade || 1, power: affected.size });
+            await delay(300);
+            affected.forEach((i) => {
+              const c = state.board[i];
+              applyCandyStyle(c, null);
+              c.element.classList.remove('clearing', 'blast');
+            });
+            await delay(80);
+            collapseColumns();
+            await delay(140);
+            refillBoard();
+            await delay(160);
+            await resolveBoard(1);
+          };
+
+                              const detonateBombAt = async (centerIndex) => {
+            if (centerIndex == null) return;
+            const affected = new Set();
+            const toProcess = [];
+            const visitedBombs = new Set();
+            const centers = [];
+            const enqueueIfBomb = (idx) => {
+              const cell = state.board[idx];
+              if (cell?.special === 'bomb' && !visitedBombs.has(idx)) {
+                visitedBombs.add(idx);
+                toProcess.push(idx);
+              }
+            };
+            enqueueIfBomb(centerIndex);
+
+            while (toProcess.length) {
+              const bombIndex = toProcess.shift();
+              const { row, col } = indexToPoint(bombIndex);
+              centers.push(bombIndex);
+              for (let dr = -1; dr <= 1; dr += 1) {
+                for (let dc = -1; dc <= 1; dc += 1) {
+                  const rr = row + dr;
+                  const cc = col + dc;
+                  if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                  const nIdx = pointToIndex(rr, cc);
+                  affected.add(nIdx);
+                  enqueueIfBomb(nIdx);
+                }
+              }
+            }
+
+            affected.forEach((i) => {
+              const c = state.board[i];
+              c.element.classList.add('clearing', 'blast');
+            });
+            // FX: big bursts at bomb centers
+            try {
+              centers.forEach((ci) => {
+                const { x, y } = cellCenter(ci);
+                burstParticles(x, y, { count: 42, speed: 320, life: 0.7 });
+                addRing(x, y, { r0: 12, r1: 130, width: 8, color: 'rgba(248,113,113,0.9)', duration: 260 });
+              });
+              kickShake(Math.min(10, 4 + affected.size * 0.15), 220);
+            } catch {}
+            playSfx('bomb', { cascadeLevel: state.activeCascade || 1, power: affected.size });
+            try { flashScreen('rgba(255,255,255,0.9)', 140, 0.55); pulseZoom(0.05, 220); } catch {}
+            await delay(240);
+            affected.forEach((i) => {
+              const c = state.board[i];
+              applyCandyStyle(c, null);
+              c.element.classList.remove('clearing', 'blast');
+            });
+            await delay(80);
+            collapseColumns();
+            await delay(140);
+            refillBoard();
+            await delay(160);
+            await resolveBoard(1);
+          };
+
+          const detonateOrb = async (orbIndex, targetType) => {
+            if (orbIndex == null || !targetType) return;
+            const affected = new Set();
+            for (let i = 0; i < totalCells; i += 1) {
+              if (state.board[i].type === targetType) affected.add(i);
+            }
+            affected.add(orbIndex);
+            affected.forEach((i) => {
+              const c = state.board[i];
+              c.element.classList.add('clearing', 'blast');
+            });
+            try {
+              const { x: sx, y: sy } = cellCenter(orbIndex);
+              const indices = Array.from(affected).filter((i) => i !== orbIndex);
+              indices.forEach((ti, idx) => {
+                const { x: tx, y: ty } = cellCenter(ti);
+                setTimeout(() => addBeam(sx, sy, tx, ty, {
+                  colorStart: 'rgba(244,114,182,0.95)',
+                  colorEnd: 'rgba(96,165,250,0.95)',
+                  baseWidth: 8,
+                  duration: 260,
+                }), idx * 12);
+              });
+              setTimeout(() => {
+                indices.forEach((ti) => {
+                  const { x, y } = cellCenter(ti);
+                  burstParticles(x, y, { count: 12, speed: 220, life: 0.45, gravity: 260 });
+                });
+              }, 200);
+              addRing(sx, sy, { r0: 10, r1: 120, width: 7, color: 'rgba(96,165,250,0.9)', duration: 260 });
+              kickShake(Math.min(10, 4 + indices.length * 0.1), 220);
+            } catch {}
+            playSfx('laser', { cascadeLevel: state.activeCascade || 1, power: affected.size });
+            try { flashScreen('rgba(250,204,21,0.85)', 140, 0.5); pulseZoom(0.04, 200); } catch {}
+            await delay(260);
+            affected.forEach((i) => {
+              const c = state.board[i];
+              applyCandyStyle(c, null);
+              c.element.classList.remove('clearing', 'blast');
+            });
+            await delay(80);
+            collapseColumns();
+            await delay(140);
+            refillBoard();
+            await delay(160);
+            await resolveBoard(1);
+          };
+
+          const detonateCrossAt = async (centerIndex) => {
+            if (centerIndex == null) return;
+            const affected = new Set();
+            const { row, col } = indexToPoint(centerIndex);
+            for (let c = 0; c < boardSize; c += 1) affected.add(pointToIndex(row, c));
+            for (let r = 0; r < boardSize; r += 1) affected.add(pointToIndex(r, col));
+            // If the cross beam hits bombs, chain-explode them (expand affected accordingly)
+            (function expandFromBombsInLine() {
+              const visited = new Set();
+              const queue = [];
+              affected.forEach((idx) => {
+                const cell = state.board[idx];
+                if (cell?.special === 'bomb' && !visited.has(idx)) {
+                  visited.add(idx);
+                  queue.push(idx);
+                }
+              });
+              while (queue.length) {
+                const bIdx = queue.shift();
+                const { row: br, col: bc } = indexToPoint(bIdx);
+                for (let dr = -1; dr <= 1; dr += 1) {
+                  for (let dc = -1; dc <= 1; dc += 1) {
+                    const rr = br + dr;
+                    const cc = bc + dc;
+                    if (rr < 0 || cc < 0 || rr >= boardSize || cc >= boardSize) continue;
+                    const nIdx = pointToIndex(rr, cc);
+                    if (!affected.has(nIdx)) affected.add(nIdx);
+                    const nCell = state.board[nIdx];
+                    if (nCell?.special === 'bomb' && !visited.has(nIdx)) {
+                      visited.add(nIdx);
+                      queue.push(nIdx);
+                    }
+                  }
+                }
+              }
+            })();
+            affected.forEach((i) => {
+              const c = state.board[i];
+              c.element.classList.add('clearing', 'blast');
+            });
+            try {
+              const leftIdx = pointToIndex(row, 0);
+              const rightIdx = pointToIndex(row, boardSize - 1);
+              const topIdx = pointToIndex(0, col);
+              const bottomIdx = pointToIndex(boardSize - 1, col);
+              const { x: lx, y: ly } = cellCenter(leftIdx);
+              const { x: rx, y: ry } = cellCenter(rightIdx);
+              const { x: tx, y: ty } = cellCenter(topIdx);
+              const { x: bx, y: by } = cellCenter(bottomIdx);
+              const { x: cx, y: cy } = cellCenter(centerIndex);
+              addBeam(lx, ly, rx, ry, { colorStart: 'rgba(250,204,21,0.95)', colorEnd: 'rgba(244,114,182,0.95)', baseWidth: 10, duration: 220 });
+              addBeam(tx, ty, bx, by, { colorStart: 'rgba(250,204,21,0.95)', colorEnd: 'rgba(96,165,250,0.95)', baseWidth: 10, duration: 220 });
+              burstParticles(cx, cy, { count: 28, speed: 280, life: 0.5 });
+              addRing(cx, cy, { r0: 10, r1: 120, width: 7, color: 'rgba(250,204,21,0.9)', duration: 220 });
+              kickShake(9, 240);
+            } catch {}
+            playSfx('laser', { cascadeLevel: state.activeCascade || 1, power: affected.size });
+            try { flashScreen('rgba(96,165,250,0.9)', 140, 0.5); pulseZoom(0.04, 200); } catch {}
+            await delay(240);
+            affected.forEach((i) => {
+              const c = state.board[i];
+              applyCandyStyle(c, null);
+              c.element.classList.remove('clearing', 'blast');
+            });
+            await delay(80);
+            collapseColumns();
+            await delay(140);
+            refillBoard();
+            await delay(160);
+            await resolveBoard(1);
+          };
+
+          // Prefer orb+bonus combos before individual bonus activations
+          const combinedWithBomb = (wasOrbA && wasBombB) || (wasOrbB && wasBombA);
+          const combinedWithCross = (wasOrbA && wasCrossB) || (wasOrbB && wasCrossA);
+          if (combinedWithBomb) {
+            await detonateOrbCombo(orbAfterIndex, 'bomb', bombAfterIndex);
+            state.moves += 1;
+            updateHud();
+            state.busy = false;
+            return true;
+          }
+          if (combinedWithCross) {
+            await detonateOrbCombo(orbAfterIndex, 'cross', crossAfterIndex);
+            state.moves += 1;
+            updateHud();
+            state.busy = false;
+            return true;
+          }
+
+          if (wasBombA || wasBombB) {
+            await detonateBombAt(bombAfterIndex);
+            state.moves += 1;
+            updateHud();
+            state.busy = false;
+            return true;
+          }
+          
+          if (wasOrbA || wasOrbB) {
+            await detonateOrb(orbAfterIndex, otherTypeForOrb);
+            state.moves += 1;
+            updateHud();
+            state.busy = false;
+            return true;
+          }
+          if (wasCrossA || wasCrossB) {
+            await detonateCrossAt(crossAfterIndex);
+            state.moves += 1;
+            updateHud();
+            state.busy = false;
+            return true;
+          }
+          
+          const hadMatches = await resolveBoard(1);
+          if (!hadMatches) {
+            swapCandies(origin, target);
+            flashInvalid(origin, target);
+            playSfx('invalid');
+            state.busy = false;
+            return false;
+          }
+          
+          state.moves += 1;
+          updateHud();
+          state.busy = false;
+          try { resetHintTimer(); } catch {}
+          return true;
+        };
+        
+        const handleCellSelection = async (event) => {
+          event.preventDefault();
+          try { onPlayerActivity(); } catch {}
+          if (state.busy) return;
+          const target = event.currentTarget;
+          const index = Number(target.dataset.index);
+          const cell = state.board[index];
+          
+          if (!state.selected) {
+            state.selected = cell;
+            cell.element.classList.add('selected');
+            return;
+          }
+          
+          if (cell === state.selected) {
+            deselect();
+            return;
+          }
+          
+          if (!isAdjacent(cell.index, state.selected.index)) {
+            state.selected.element.classList.remove('selected');
+            state.selected = cell;
+            cell.element.classList.add('selected');
+            return;
+          }
+          
+          const origin = state.selected;
+          origin.element.classList.remove('selected');
+          deselect();
+          await attemptSwap(origin, cell);
+        };
+        
+        const bootstrapBoard = () => {
+          for (let index = 0; index < totalCells; index += 1) {
+            const cell = createCell(index);
+            const { row, col } = indexToPoint(index);
+            let candidate = randomCandyId();
+            let safety = 0;
+            while (wouldCreateMatch(row, col, candidate) && safety < 12) {
+              candidate = randomCandyId();
+              safety += 1;
+            }
+            applyCandyStyle(cell, candidate);
+            try {
+              const { x, y } = cellCenter(index);
+              if (Math.random() < 0.08) burstParticles(x, y, { count: 6, speed: 120, life: 0.3, gravity: 200 });
+            } catch {}
+            cell.element.addEventListener('click', handleCellSelection);
+            cell.element.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                try { onPlayerActivity(); } catch {}
+                handleCellSelection(event);
+              }
+            });
+            
+            cell.element.draggable = true;
+            cell.element.addEventListener('dragstart', (event) => {
+              try {
+                event.dataTransfer?.setData('text/plain', String(index));
+                event.dataTransfer?.setDragImage(
+                  cell.element,
+                  Math.floor(cell.element.offsetWidth / 2),
+                  Math.floor(cell.element.offsetHeight / 2)
+                );
+              } catch {}
+              cell.element.classList.add('selected');
+              try {
+                playSfx('swap');
+              } catch {}
+              try { onPlayerActivity(); } catch {}
+            });
+            
+            cell.element.addEventListener('dragover', (event) => {
+              event.preventDefault();
+            });
+            
+            cell.element.addEventListener('drop', async (event) => {
+              event.preventDefault();
+              try { onPlayerActivity(); } catch {}
+              const srcIndex = Number(event.dataTransfer?.getData('text/plain'));
+              const dstIndex = Number(cell.element.dataset.index);
+              const origin = state.board[srcIndex];
+              const targetCell = state.board[dstIndex];
+              origin?.element?.classList?.remove('selected');
+              if (!origin || !targetCell || origin === targetCell) return;
+              if (!isAdjacent(origin.index, targetCell.index)) {
+                flashInvalid(origin, targetCell);
+                return;
+              }
+              await attemptSwap(origin, targetCell);
+            });
+            
+            cell.element.addEventListener('dragend', () => {
+              cell.element.classList.remove('selected');
+            });
+          }
+          
+          resolveBoard(1).then(() => {
+            state.busy = false;
+            try { scheduleHint(); } catch {}
+          });
+        };
+        
+        // Idle hint: after 20s inactivity, highlight a legal move
+        let hintTimer = null;
+        const hintDelayMs = 20000;
+        let hintPair = null; // [indexA, indexB]
+
+        const clearHint = () => {
+          if (hintPair) {
+            const [a, b] = hintPair;
+            state.board[a]?.element?.classList?.remove('hint');
+            state.board[b]?.element?.classList?.remove('hint');
+            hintPair = null;
+          }
+        };
+
+        const showHint = (a, b) => {
+          clearHint();
+          hintPair = [a, b];
+          state.board[a]?.element?.classList?.add('hint');
+          state.board[b]?.element?.classList?.add('hint');
+        };
+
+        const scheduleHint = () => {
+          if (hintTimer) clearTimeout(hintTimer);
+          hintTimer = setTimeout(() => {
+            try { maybeShowHint(); } catch {}
+          }, hintDelayMs);
+        };
+
+        const resetHintTimer = () => {
+          clearHint();
+          scheduleHint();
+        };
+
+        const onPlayerActivity = () => {
+          resetHintTimer();
+        };
+
+        const hasMatchAround = (types, r, c) => {
+          const type = types[r][c];
+          if (!type) return false;
+          // horizontal
+          let count = 1;
+          for (let cc = c - 1; cc >= 0 && types[r][cc] === type; cc -= 1) count += 1;
+          for (let cc = c + 1; cc < boardSize && types[r][cc] === type; cc += 1) count += 1;
+          if (count >= 3) return true;
+          // vertical
+          count = 1;
+          for (let rr = r - 1; rr >= 0 && types[rr][c] === type; rr -= 1) count += 1;
+          for (let rr = r + 1; rr < boardSize && types[rr][c] === type; rr += 1) count += 1;
+          return count >= 3;
+        };
+
+        const findAnyLegalMove = () => {
+          // Build a 2D array of types
+          const types = Array.from({ length: boardSize }, (_, r) => (
+            Array.from({ length: boardSize }, (_, c) => state.board[pointToIndex(r, c)]?.type || null)
+          ));
+
+          const tryPair = (i, j) => {
+            const { row: r1, col: c1 } = indexToPoint(i);
+            const { row: r2, col: c2 } = indexToPoint(j);
+            const cellA = state.board[i];
+            const cellB = state.board[j];
+            // Any special involved is always a legal swap
+            if (cellA?.special || cellB?.special) return [i, j];
+            if (!cellA?.type || !cellB?.type) return null;
+            // swap in the local types grid
+            const t1 = types[r1][c1];
+            const t2 = types[r2][c2];
+            types[r1][c1] = t2;
+            types[r2][c2] = t1;
+            const ok = hasMatchAround(types, r1, c1) || hasMatchAround(types, r2, c2);
+            // swap back
+            types[r1][c1] = t1;
+            types[r2][c2] = t2;
+            return ok ? [i, j] : null;
+          };
+
+          for (let r = 0; r < boardSize; r += 1) {
+            for (let c = 0; c < boardSize; c += 1) {
+              const i = pointToIndex(r, c);
+              // right neighbor
+              if (c + 1 < boardSize) {
+                const j = pointToIndex(r, c + 1);
+                const res = tryPair(i, j);
+                if (res) return res;
+              }
+              // down neighbor
+              if (r + 1 < boardSize) {
+                const j = pointToIndex(r + 1, c);
+                const res = tryPair(i, j);
+                if (res) return res;
+              }
+            }
+          }
+          return null;
+        };
+
+        const maybeShowHint = () => {
+          if (state.busy) { scheduleHint(); return; }
+          const mv = findAnyLegalMove();
+          if (mv) {
+            const [a, b] = mv;
+            showHint(a, b);
+          } else {
+            // No legal move found; try again later
+            scheduleHint();
+          }
+        };
+
+        state.busy = true;
+        bootstrapBoard();
+        updateHud();
+      })();
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
